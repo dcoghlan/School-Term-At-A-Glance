@@ -1,4 +1,4 @@
-// School Term Calendar Generator for Google Sheets (v16)
+// School Term Calendar Generator for Google Sheets (v17)
 // 
 // SETUP INSTRUCTIONS:
 // 1. Create a new Google Sheet
@@ -254,6 +254,7 @@ function generateCalendar() {
   
   // Insert the new sheet at index 0 (first position)
   calSheet = ss.insertSheet(CALENDAR_SHEET, 0);
+  calSheet.setHiddenGridlines(true);
   calSheet.activate();
   
 
