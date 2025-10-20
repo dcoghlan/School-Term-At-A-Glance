@@ -229,7 +229,7 @@ function generateCalendar() {
           let textToAdd = eventTimeText;
           if (Utilities.formatDate(currentDateIterator, TIMEZONE, 'yyyy/MM/dd') > Utilities.formatDate(dayStart, TIMEZONE, 'yyyy/MM/dd')) {
               // On days after the start day, just show the title to save space and remove repeated time
-              textToAdd = `(cont.) ${eventTitleMultiDay}`;
+              textToAdd = `${eventTitleMultiDay} (cont.)`;
           }
 
           eventsByDate[eventDateStr].push(textToAdd);
