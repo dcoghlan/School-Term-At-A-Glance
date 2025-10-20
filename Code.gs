@@ -1,4 +1,4 @@
-// School Term Calendar Generator for Google Sheets (v18)
+// School Term Calendar Generator for Google Sheets (v19)
 // 
 // SETUP INSTRUCTIONS:
 // 1. Create a new Google Sheet
@@ -13,6 +13,11 @@
 // Configuration sheet name
 const CONFIG_SHEET = 'Config';
 const CALENDAR_SHEET = 'Term Calendar';
+
+// Other Variables
+const RANGE_GENERATED = 'D2';
+const TXT_GENERATED = 'Last Generated: ';
+const DEFAULT_STALE_PERIOD_HRS = 6;
 
 // Run when the spreadsheet is opened
 function onOpen() {
@@ -117,7 +122,8 @@ function saveConfig(config) {
     ['Start Date', config.startDate],
     ['Week Count', config.weekCount],
     ['Calendar ID', config.calendarId],
-    ['Historical Date Shading', config.historicalShading]
+    ['Historical Date Shading', config.historicalShading],
+    ['Stale Period (Hrs)', config.stalePeriod]
 
   ]);
   
@@ -135,13 +141,14 @@ function getConfig() {
     return {};
   }
   
-  const data = configSheet.getRange('A2:B6').getValues();
+  const data = configSheet.getRange('A2:B7').getValues();
   return {
     termName: data[0][1],
     startDate: data[1][1],
     weekCount: data[2][1],
     calendarId: data[3][1],
-    historicalShading: data[4][1]
+    historicalShading: data[4][1],
+    stalePeriod: data[5][1]
 
   };
 }
@@ -154,6 +161,35 @@ function isMidnight(dateObject) {
          dateObject.getMinutes() === 0 &&
          dateObject.getSeconds() === 0 &&
          dateObject.getMilliseconds() === 0;
+}
+
+// Change font color of cell displaying the last time the sheet
+// was updated/generated if its more than X number of hours ago.
+function isStale() {
+  const config = getConfig();
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let calSheet = ss.getSheetByName(CALENDAR_SHEET);
+
+  if (!calSheet) {
+    return {};
+  }
+
+  const dataRange = calSheet.getRange(RANGE_GENERATED);
+  const dataValue = dataRange.getValue();
+  const rawDate = dataValue.substring(TXT_GENERATED.length);
+
+  const storedDate = new Date(rawDate);
+  const now = new Date();
+  const stalePeriodHrs = config.stalePeriod ? config.stalePeriod : DEFAULT_STALE_PERIOD_HRS;
+
+  const hoursInMs = stalePeriodHrs * 60 * 60 * 1000
+
+  const differenceMs = now.getTime() - storedDate.getTime()
+  if (differenceMs > hoursInMs && hoursInMs > 0) {
+    dataRange.setFontColor('#ff0000');
+  }
+
 }
 
 // Generate the calendar
@@ -295,8 +331,8 @@ function generateCalendar() {
   // Format: 'dd MMM yyyy HH:mm:ss' (e.g., '14 Oct 2025 22:19:38')
   const refreshTime = Utilities.formatDate(now, TIMEZONE, 'dd MMM yyyy HH:mm:ss');
   
-  calSheet.getRange('D2').setValue(`Last generated: ${refreshTime}`);
-  calSheet.getRange('D2').setFontSize(9).setFontColor('#666666').setHorizontalAlignment('center');
+  calSheet.getRange(RANGE_GENERATED).setValue(TXT_GENERATED + refreshTime);
+  calSheet.getRange(RANGE_GENERATED).setFontSize(9).setFontColor('#666666').setHorizontalAlignment('center');
   
   const dateMap = {};
   let currentRow = 3; // Starts at week header row
