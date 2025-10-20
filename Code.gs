@@ -283,7 +283,8 @@ function generateCalendar() {
     .setValue(config.termName)
     .setFontSize(18)
     .setFontWeight('bold')
-    .setHorizontalAlignment('center');
+    .setHorizontalAlignment('center')
+    .activate();
   
   const now = new Date();
   // Format: 'dd MMM yyyy HH:mm:ss' (e.g., '14 Oct 2025 22:19:38')
@@ -324,6 +325,11 @@ function generateCalendar() {
       cell.setVerticalAlignment('top');
       cell.setHorizontalAlignment('center');
       cell.setWrap(true);
+      // Activate the cell for the current week (if applicable))
+      if (Utilities.formatDate(currentDate, TIMEZONE, 'yyyy-MM-dd') == Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd')) {
+        const highlight = calSheet.getRange(dayHeaderRow - 1, day + 1);
+        highlight.activate();
+      }
       
       // Weekend styling
       if (day >= 5) {
