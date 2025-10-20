@@ -116,7 +116,9 @@ function saveConfig(config) {
     ['Term Name', config.termName],
     ['Start Date', config.startDate],
     ['Week Count', config.weekCount],
-    ['Calendar ID', config.calendarId]
+    ['Calendar ID', config.calendarId],
+    ['Historical Date Shading', config.historicalShading]
+
   ]);
   
   configSheet.getRange('A1:B1').setFontWeight('bold');
@@ -133,12 +135,14 @@ function getConfig() {
     return {};
   }
   
-  const data = configSheet.getRange('A2:B5').getValues();
+  const data = configSheet.getRange('A2:B6').getValues();
   return {
     termName: data[0][1],
     startDate: data[1][1],
     weekCount: data[2][1],
-    calendarId: data[3][1]
+    calendarId: data[3][1],
+    historicalShading: data[4][1]
+
   };
 }
 
@@ -155,6 +159,7 @@ function isMidnight(dateObject) {
 // Generate the calendar
 function generateCalendar() {
   const config = getConfig();
+  Logger.log('Historical shading = ' + config.historicalShading)
   
   if (!config.termName || !config.startDate || !config.weekCount) {
     SpreadsheetApp.getUi().alert('Please configure the calendar first using "Term Calendar > Setup Configuration"');
@@ -325,6 +330,13 @@ function generateCalendar() {
       cell.setVerticalAlignment('top');
       cell.setHorizontalAlignment('center');
       cell.setWrap(true);
+
+      if (config.historicalShading) {
+        if (Utilities.formatDate(currentDate, TIMEZONE, 'yyyy-MM-dd') < Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd')) {
+          cell.setFontColor('#b7b7b7')
+        }
+      }
+
       // Activate the cell for the current week (if applicable))
       if (Utilities.formatDate(currentDate, TIMEZONE, 'yyyy-MM-dd') == Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd')) {
         const highlight = calSheet.getRange(dayHeaderRow - 1, day + 1);
@@ -388,10 +400,21 @@ function generateCalendar() {
       
       const row = position.eventStartRow + index;
       const col = position.col;
-      
+    
+      // Set event font color to black by default and override if the date is prior to todays date
+      let eventFontColor = '#000000' 
+      if (config.historicalShading) {
+        const dateIter = Utilities.formatDate(new Date(dateStr), TIMEZONE, 'yyyy-MM-dd');
+        const dateNow = Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd')
+        if (Utilities.formatDate(new Date(dateStr), TIMEZONE, 'yyyy-MM-dd') < Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd')) {
+          eventFontColor = ('#b7b7b7');
+        }
+      }
+
       updates.push({
         range: calSheet.getRange(row, col),
         value: eventText,
+        fontColor: eventFontColor,
         background: col >= 6 ? '#f9f9f9' : '#e3f2fd'
       });
     });
@@ -401,6 +424,7 @@ function generateCalendar() {
   updates.forEach(update => {
     update.range.setValue(update.value);
     update.range.setFontSize(9);
+    update.range.setFontColor(update.fontColor);
     update.range.setBackground(update.background);
     update.range.setBorder(true, true, true, true, false, false, '#90caf9', SpreadsheetApp.BorderStyle.SOLID);
   });
