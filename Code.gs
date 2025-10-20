@@ -1,4 +1,4 @@
-// School Term Calendar Generator for Google Sheets (v17)
+// School Term Calendar Generator for Google Sheets (v18)
 // 
 // SETUP INSTRUCTIONS:
 // 1. Create a new Google Sheet
@@ -142,6 +142,16 @@ function getConfig() {
   };
 }
 
+// Test date object time for 00:00:00
+function isMidnight(dateObject) {
+  // Use getHours(), getMinutes(), getSeconds(), and getMilliseconds()
+  // which all return values based on the *local* time zone.
+  return dateObject.getHours() === 0 &&
+         dateObject.getMinutes() === 0 &&
+         dateObject.getSeconds() === 0 &&
+         dateObject.getMilliseconds() === 0;
+}
+
 // Generate the calendar
 function generateCalendar() {
   const config = getConfig();
@@ -178,9 +188,16 @@ function generateCalendar() {
     events.forEach(event => {
       const eventStart = event.getStartTime();
       const eventEnd = event.getEndTime();
-      const isAllDay = event.isAllDayEvent();
+      let isAllDay = event.isAllDayEvent();
       const eventTitle = event.getTitle();
       
+      // Check to see if both the event start and end dates contains 00:00:00 AND the event
+      // was NOT created using the "All Day" checkbox in the UI. In this case, set the isAllDay
+      // flag manually so the start time does not get displayed in the term planner.
+      if (isMidnight(eventStart) && isMidnight(eventEnd) && !isAllDay) {
+        Logger.log('Manually set isAllDay to true for: ' + eventTitle);
+        isAllDay = true;
+      }
       // Determine the date range to check
       const dayStart = new Date(Utilities.formatDate(eventStart, TIMEZONE, 'yyyy/MM/dd'));
       
