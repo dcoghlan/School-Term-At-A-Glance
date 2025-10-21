@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+  </head>
+  <body>
+    <style>
+      body { font-family: Arial, sans-serif; padding: 20px; }
+      .form-group { margin-bottom: 15px; }
+      label { display: block; margin-bottom: 5px; font-weight: bold; }
+      input, select { width: 100%; padding: 8px; box-sizing: border-box; }
+      button { background: #4285f4; color: white; border: none; padding: 10px 20px; 
+               cursor: pointer; border-radius: 4px; margin-top: 10px; }
+      button:hover { background: #3367d6; }
+
+      /* New and modified CSS for inline checkbox */
+      .help { 
+          font-size: 12px; 
+          color: #666; 
+          margin: 0; /* Remove default margin */
+      }
+      .checkbox-container {
+          display: flex; /* Use flexbox for horizontal alignment */
+          align-items: center; /* Vertically center items */
+          margin-bottom: 15px; /* Add margin back for spacing */
+      }
+      #historicalShading {
+          width: auto; /* Allow checkbox to be its natural size */
+          margin-right: 8px; /* Space between checkbox and text */
+      }
+    </style>
+    <div class="form-group">
+      <label>Term Name:</label>
+      <input type="text" id="termName" placeholder="e.g., Term 1 2025"></input>
+    </div>
+    
+    <div class="form-group">
+      <label>Start Date:</label>
+      <input type="date" id="startDate">
+    </div>
+    
+    <div class="form-group">
+      <label>Number of Weeks:</label>
+      <select id="weekCount">
+        <option value="9">9 weeks</option>
+        <option value="10" selected>10 weeks</option>
+        <option value="11">11 weeks</option>
+      </select>
+    </div>
+    
+    <div class="form-group">
+      <label>Historical events shading:</label>
+    </div>
+    <div class="checkbox-container">
+      <input type="checkbox" id="historicalShading">
+      <div class="help">Enable shading of historical events</div>
+    </div>
+
+    <div class="form-group">
+      <label>Google Calendar ID:</label>
+      <input type="text" id="calendarId" placeholder="Leave blank for primary calendar">
+      <div class="help">
+        To find your Calendar ID: Open Google Calendar → Settings → 
+        Select your calendar → Scroll to "Integrate calendar" → Copy the Calendar ID
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Stale data period:</label>
+      <input type="text" id="stalePeriod" placeholder="Leave blank for default = 6">
+      <div class="help">Period after which a visual indicator will be displayed to remind to regenerate the calendar</div>
+    </div>
+
+    <button onclick="saveConfig()">Save Configuration</button>
+    
+    <script>
+      // Load existing config
+      google.script.run.withSuccessHandler(function(config) {
+        // This message will appear in the BROWSER's F12 Developer Console, not the Apps Script Logs
+        console.log('CLIENT: Successfully received config data:', config);
+        if (config.termName) document.getElementById('termName').value = config.termName;
+        if (config.startDate) document.getElementById('startDate').value = config.startDate;
+        if (config.weekCount) document.getElementById('weekCount').value = config.weekCount;
+        if (config.calendarId) document.getElementById('calendarId').value = config.calendarId;
+        if (config.historicalShading) document.getElementById('historicalShading').checked = config.historicalShading;
+        if (config.stalePeriod) document.getElementById('stalePeriod').value = config.stalePeriod;
+      }).getConfig();
+      
+      function saveConfig() {
+        const config = {
+          termName: document.getElementById('termName').value,
+          startDate: document.getElementById('startDate').value,
+          weekCount: document.getElementById('weekCount').value,
+          calendarId: document.getElementById('calendarId').value,
+          historicalShading: document.getElementById('historicalShading').checked,
+          stalePeriod: document.getElementById('stalePeriod').value
+        };
+        console.log('CLIENT: Submitting config: ', config);
+        google.script.run.withSuccessHandler(function() {
+          alert('Configuration saved! Now use "Term Calendar > Generate Calendar" to create your calendar.');
+          google.script.host.close();
+        }).saveConfig(config);
+      }
+    </script>
+  </body>
+</html>

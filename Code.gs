@@ -1,4 +1,4 @@
-// School Term Calendar Generator for Google Sheets (v19)
+// School Term Calendar Generator for Google Sheets (v20)
 // 
 // SETUP INSTRUCTIONS:
 // 1. Create a new Google Sheet
@@ -19,6 +19,36 @@ const RANGE_GENERATED = 'D2';
 const TXT_GENERATED = 'Last Generated: ';
 const DEFAULT_STALE_PERIOD_HRS = 6;
 
+function listAllAccessibleCalendars() {
+  // Use the CalendarApp service to retrieve all calendars the user can see.
+  const calendars = CalendarApp.getAllCalendars();
+  
+  // Array to hold the list of calendar details
+  const calendarList = [];
+  
+  Logger.log("--- All Accessible Calendars ---");
+  
+  // Loop through the array of Calendar objects
+  calendars.forEach(calendar => {
+    const calendarName = calendar.getName();
+    const calendarId = calendar.getId();
+    const isOwned = calendar.isOwnedByMe();
+    
+    // Log details for easy viewing
+    Logger.log(`Name: ${calendarName} | ID: ${calendarId} | Owned: ${isOwned}`);
+    
+    // You can also store this data to display in a spreadsheet or HTML UI later
+    calendarList.push({
+      name: calendarName,
+      id: calendarId,
+      owned: isOwned
+    });
+  });
+  
+  // Return the full list (optional)
+  return calendarList;
+}
+
 // Run when the spreadsheet is opened
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
@@ -29,79 +59,21 @@ function onOpen() {
 
 }
 
-// Show configuration dialog (No changes needed)
+// Show configuration dialog
 function showConfigDialog() {
-  const html = HtmlService.createHtmlOutput(`
-    <style>
-      body { font-family: Arial, sans-serif; padding: 20px; }
-      .form-group { margin-bottom: 15px; }
-      label { display: block; margin-bottom: 5px; font-weight: bold; }
-      input, select { width: 100%; padding: 8px; box-sizing: border-box; }
-      button { background: #4285f4; color: white; border: none; padding: 10px 20px; 
-               cursor: pointer; border-radius: 4px; margin-top: 10px; }
-      button:hover { background: #3367d6; }
-      .help { font-size: 12px; color: #666; margin-top: 5px; }
-    </style>
-    
-    <h2>Term Calendar Configuration</h2>
-    
-    <div class="form-group">
-      <label>Term Name:</label>
-      <input type="text" id="termName" placeholder="e.g., Term 1 2025">
-    </div>
-    
-    <div class="form-group">
-      <label>Start Date:</label>
-      <input type="date" id="startDate">
-    </div>
-    
-    <div class="form-group">
-      <label>Number of Weeks:</label>
-      <select id="weekCount">
-        <option value="9">9 weeks</option>
-        <option value="10" selected>10 weeks</option>
-        <option value="11">11 weeks</option>
-      </select>
-    </div>
-    
-    <div class="form-group">
-      <label>Google Calendar ID:</label>
-      <input type="text" id="calendarId" placeholder="Leave blank for primary calendar">
-      <div class="help">
-        To find your Calendar ID: Open Google Calendar → Settings → 
-        Select your calendar → Scroll to "Integrate calendar" → Copy the Calendar ID
-      </div>
-    </div>
-    
-    <button onclick="saveConfig()">Save Configuration</button>
-    
-    <script>
-      // Load existing config
-      google.script.run.withSuccessHandler(function(config) {
-        if (config.termName) document.getElementById('termName').value = config.termName;
-        if (config.startDate) document.getElementById('startDate').value = config.startDate;
-        if (config.weekCount) document.getElementById('weekCount').value = config.weekCount;
-        if (config.calendarId) document.getElementById('calendarId').value = config.calendarId;
-      }).getConfig();
-      
-      function saveConfig() {
-        const config = {
-          termName: document.getElementById('termName').value,
-          startDate: document.getElementById('startDate').value,
-          weekCount: document.getElementById('weekCount').value,
-          calendarId: document.getElementById('calendarId').value
-        };
-        
-        google.script.run.withSuccessHandler(function() {
-          alert('Configuration saved! Now use "Term Calendar > Generate Calendar" to create your calendar.');
-          google.script.host.close();
-        }).saveConfig(config);
-      }
-    </script>
-  `)
+
+  const config = getConfig();
+
+  // 1. Load the HTML file as a template
+  const template = HtmlService.createTemplateFromFile('Index');
+
+  // 2. Assign variables to the template object
+  template.termName = config.termName;
+
+  // 3. Evaluate the template to create the final HtmlOutput object
+  const html = template.evaluate()
   .setWidth(500)
-  .setHeight(450);
-  
+  .setHeight(600);
   SpreadsheetApp.getUi().showModalDialog(html, 'Configure Term Calendar');
 }
 
@@ -116,7 +88,7 @@ function saveConfig(config) {
   }
   
   configSheet.clear();
-  configSheet.getRange('A1:B5').setValues([
+  configSheet.getRange('A1:B7').setValues([
     ['Setting', 'Value'],
     ['Term Name', config.termName],
     ['Start Date', config.startDate],
@@ -134,23 +106,34 @@ function saveConfig(config) {
 
 // Get configuration
 function getConfig() {
+  Logger.log("getConfig() function started executing.");
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const configSheet = ss.getSheetByName(CONFIG_SHEET);
   
   if (!configSheet) {
+    Logger.log("getConfig() no config sheet found.");
     return {};
   }
   
   const data = configSheet.getRange('A2:B7').getValues();
+
+  // Check if it's a Date object before formatting
+  let startDateString = data[1][1];
+  if (startDateString instanceof Date) {
+    startDateString = Utilities.formatDate(startDateString, ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
+    Logger.log("getConfig() Formatted start date to string: " + startDateString);
+  }
+  
+  Logger.log("getConfig(): " +data)
+
   return {
     termName: data[0][1],
-    startDate: data[1][1],
+    startDate: startDateString,
     weekCount: data[2][1],
     calendarId: data[3][1],
     historicalShading: data[4][1],
     stalePeriod: data[5][1]
-
-  };
+  }
 }
 
 // Test date object time for 00:00:00
