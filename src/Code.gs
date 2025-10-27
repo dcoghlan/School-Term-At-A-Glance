@@ -1,4 +1,4 @@
-// School Term Calendar Generator for Google Sheets (v20)
+// School Term Calendar Generator for Google Sheets (v21)
 // 
 // SETUP INSTRUCTIONS:
 // 1. Create a new Google Sheet
@@ -115,7 +115,7 @@ function getConfig() {
     return {};
   }
   
-  const data = configSheet.getRange('A2:B7').getValues();
+  const data = configSheet.getRange('A2:B8').getValues();
 
   // Check if it's a Date object before formatting
   let startDateString = data[1][1];
@@ -124,7 +124,18 @@ function getConfig() {
     Logger.log("getConfig() Formatted start date to string: " + startDateString);
   }
   
-  Logger.log("getConfig(): " +data)
+  // Check the "ignore" config item and convert to list if vales are found
+  const ignoreNamesRaw = data[6][1];
+  let ignoreNamesList = [];
+ 
+  if (ignoreNamesRaw || ignoreNamesRaw.trim() !== '') {
+    ignoreNamesList = ignoreNamesRaw.split(',')
+      .map(word => word.trim())
+      .filter(word => word !== '');
+  }
+  Logger.log("getConfig(): ignoreList (length " + ignoreNamesList.length + "): " + ignoreNamesList)
+  const jsonString = JSON.stringify(data, null, 2);
+  Logger.log("getConfig(): config data: " + jsonString)
 
   return {
     termName: data[0][1],
@@ -132,7 +143,8 @@ function getConfig() {
     weekCount: data[2][1],
     calendarId: data[3][1],
     historicalShading: data[4][1],
-    stalePeriod: data[5][1]
+    stalePeriod: data[5][1],
+    ignoreNames: ignoreNamesList
   }
 }
 
@@ -175,6 +187,12 @@ function isStale() {
 
 }
 
+function containsIgnoreName(eventTitle, ignoreString) {
+  const lowerText = eventTitle.toLowerCase();
+  
+  return ignoreString.some(item => lowerText.includes(item.toLowerCase()));
+}
+
 // Generate the calendar
 function generateCalendar() {
   const config = getConfig();
@@ -214,6 +232,13 @@ function generateCalendar() {
       const eventEnd = event.getEndTime();
       let isAllDay = event.isAllDayEvent();
       const eventTitle = event.getTitle();
+
+      if (config.ignoreNames.length > 0){
+
+        if (containsIgnoreName(eventTitle, config.ignoreNames)) {
+          return;
+        }
+      }
       
       // Check to see if both the event start and end dates contains 00:00:00 AND the event
       // was NOT created using the "All Day" checkbox in the UI. In this case, set the isAllDay
