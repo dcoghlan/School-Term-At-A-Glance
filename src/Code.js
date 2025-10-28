@@ -1,25 +1,42 @@
 // School Term Calendar Generator for Google Sheets (v25)
-// 
+ 
 // SETUP INSTRUCTIONS:
 // 1. Create a new Google Sheet
 // 2. Go to Extensions > Apps Script
-// 3. Delete any existing code and paste this entire script
-// 4. Save the project (give it a name like "Term Calendar")
-// 5. Close the script editor and refresh your sheet
-// 6. You'll see a new "Term Calendar" menu appear
-// 7. Use "Term Calendar > Setup Configuration" to enter your settings
-// 8. Use "Term Calendar > Generate Calendar" to create the complete calendar.
+// 3. Delete any existing code in the file Code.gs and paste the entire contents
+//    of this script and save the file.
+// 4. Create a new file called Index.html in the Apps Script project and copy the
+//    contents of the file src / Index.html to the file in the Apps Script Project
+// 5. Save the project (give it a name like "Term Calendar")
+// 6. Close the script editor and refresh your sheet
+// 7. You'll see a new "Term Calendar" menu appear
+// 8. Use "Term Calendar > Setup Configuration" to enter your settings. Upon first
+//    run, you will be prompted to authorise the Apps Script project. Go through
+//    the process and ensure you authorise it using the account which has access
+//    to the calendar you want to read events from
+// 9. Use "Term Calendar > Generate Calendar" to create the complete calendar.
 
-// Configuration sheet name
+// Defines the name of the sheet that config options are saved to/read from
 const CONFIG_SHEET = 'Config';
+
+// Defines the name of the sheet for the generated calendar
 const CALENDAR_SHEET = 'Term Calendar';
 
 // Define the suffix to use to temporarily rename the existing sheet upon sheet regeneration
 const CALENDAR_SHEET_BACKUP_SUFFIX = '.bak'
 
 // Other Variables
+
+// Defines the location to display the last time the calendar was generated
 const RANGE_GENERATED = 'D2';
+
+// Defines the prefix for the text to display before the last time the
+// calendar was generated
 const TXT_GENERATED = 'Last Generated: ';
+
+// Default time period in hours after the last time the calendar was generated
+// to mark the calendar as having stale data. This is used to display a subtle
+// prompt for the user to remind them to re-generate the calendar
 const DEFAULT_STALE_PERIOD_HRS = 6;
 
 // Default number of event rows allocated per week. If there are no events 
@@ -225,7 +242,26 @@ function generateCalendar() {
   endDate.setDate(startDate.getDate() + (weekCount * 7));
   
   let events = [];
+
+   // Stores events, grouped by date
+   // example: 
+   // { 
+   //    "2025-10-13": [
+   //      "All Day Event Title 1",
+   //      "All Day Event Title 2",
+   //      "All Day Event Title 3",
+   //      "Assembly [8:45am]"
+   //    ],
+   //    "2025-10-14": [
+   //      "All Day Event Title 3 (cont.)",
+   //      "Year 6 Excursion [9:15am]"
+   //    ]
+   // }
   const eventsByDate = {};
+
+  // Array that stores the min number of events per week.
+  // The index (+1) is mapped to the week number (e.g. Index 0 = Week 1)
+  // The value is the maximum number of events for any given day during the week
   const eventsByWeek = [];
 
   try {
@@ -243,8 +279,9 @@ function generateCalendar() {
       let isAllDay = event.isAllDayEvent();
       const eventTitle = event.getTitle();
 
+      // If ignoreNames are provided in the config, ignore any events where
+      // the event title contains ANY of the strings provided
       if (config.ignoreNames.length > 0){
-
         if (containsIgnoreName(eventTitle, config.ignoreNames)) {
           return;
         }
@@ -257,7 +294,8 @@ function generateCalendar() {
         Logger.log('Manually set isAllDay to true for: ' + eventTitle);
         isAllDay = true;
       }
-      // Determine the date range to check
+
+      // Determine the date range to check, beginning with the start date
       const dayStart = new Date(Utilities.formatDate(eventStart, TIMEZONE, 'yyyy/MM/dd'));
       
       // For all-day events, the end time is midnight of the *next* day, so we subtract one day.
@@ -292,10 +330,16 @@ function generateCalendar() {
           // before events with a start time defined.
           isAllDay ? eventsByDate[eventDateStr].unshift(textToAdd) : eventsByDate[eventDateStr].push(textToAdd);
 
+          // Dynamic Row Calculation - works out how many days since the calendar "start date" for the term
+          // and then calculates which weekIndex this corresponds to for the current event date.
           const eventDateObj = new Date(eventDateStr);
           const daysDiff = Math.floor((eventDateObj - startDate) / (1000 * 60 * 60 * 24));
           const weekIndex = Math.floor(daysDiff / 7);
           
+          // Presuming the weekIndex falls within the terms weeks count, set the number of the eventsByWeek
+          // to the maximum of either the current value for eventsByWeek, or the number of events for the 
+          // current event date. Essentially, as new events are processed and added to the eventsByDate for
+          // a specific date, this figure will start increasing once it goes above the default set via MIN_EVENT_ROWS
           if (weekIndex >= 0 && weekIndex < weekCount) {
             eventsByWeek[weekIndex] = Math.max(eventsByWeek[weekIndex], eventsByDate[eventDateStr].length);
           }
@@ -354,6 +398,7 @@ function generateCalendar() {
     .setHorizontalAlignment('center')
     .activate();
   
+  // Show the time the calendar was generated
   const now = new Date();
   // Format: 'dd MMM yyyy HH:mm:ss' (e.g., '14 Oct 2025 22:19:38')
   const refreshTime = Utilities.formatDate(now, TIMEZONE, 'dd MMM yyyy HH:mm:ss');
