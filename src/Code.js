@@ -64,7 +64,22 @@ const MIN_EVENT_ROWS = 5;
 function listAllAccessibleCalendars() {
   // Use the CalendarApp service to retrieve all calendars the user can see.
   const calendars = CalendarApp.getAllCalendars();
-  
+
+  // Sort the calendars array by name BEFORE processing
+  calendars.sort((a, b) => {
+    const nameA = a.getName().toUpperCase(); // Get name and normalize case
+    const nameB = b.getName().toUpperCase();
+    
+    if (nameA < nameB) {
+      return -1; // a comes before b
+    }
+    if (nameA > nameB) {
+      return 1;  // a comes after b
+    }
+    return 0;    // names are equal
+  });
+  // End of sort
+
   // Array to hold the list of calendar details
   const calendarList = [];
   
