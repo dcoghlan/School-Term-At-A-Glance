@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-// School Term Calendar Generator for Google Sheets (v26)
+// School Term Calendar Generator for Google Sheets (v27)
  
 // SETUP INSTRUCTIONS:
 // 1. Create a new Google Sheet
@@ -510,6 +510,10 @@ function generateCalendar() {
           borderRange.setBackground('#ffffff');
         }
     }
+
+    // Groups the weeks rows together so they can be hidden if required
+    const range = calSheet.getRange(`${currentRow}:${currentRow + eventRowsThisWeek}`);
+    range.shiftRowGroupDepth(1);
 
     currentRow += eventRowsThisWeek; // Add the dynamic number of event rows
     currentRow++; // Gap between weeks
