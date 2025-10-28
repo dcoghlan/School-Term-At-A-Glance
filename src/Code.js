@@ -1,4 +1,4 @@
-// School Term Calendar Generator for Google Sheets (v23)
+// School Term Calendar Generator for Google Sheets (v24)
 // 
 // SETUP INSTRUCTIONS:
 // 1. Create a new Google Sheet
@@ -388,6 +388,7 @@ function generateCalendar() {
       cell.setVerticalAlignment('top');
       cell.setHorizontalAlignment('center');
       cell.setWrap(true);
+      cell.setBorder(true, true, true, true, false, false, 'grey', SpreadsheetApp.BorderStyle.SOLID);
 
       if (config.historicalShading) {
         if (Utilities.formatDate(currentDate, TIMEZONE, 'yyyy-MM-dd') < Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd')) {
@@ -404,6 +405,7 @@ function generateCalendar() {
       // Weekend styling
       if (day >= 5) {
         cell.setBackground('#f3f3f3');
+        cell.setFontSize(8);
       } else {
         cell.setBackground('#ffffff');
       }
@@ -421,25 +423,31 @@ function generateCalendar() {
     }
     
     currentRow++; // Moves to the first event row
-    
-    // Event rows (DYNAMIC rows per day for events)
-    for (let eventRow = 0; eventRow < eventRowsThisWeek; eventRow++) {
-      for (let day = 0; day < 7; day++) {
-        const cell = calSheet.getRange(currentRow + eventRow, day + 1);
-        cell.setVerticalAlignment('top');
-        cell.setWrap(true);
-        
+
+    // Setup borders and formatting options for the day    
+    for (let day = 0; day < 7; day++) {
+        let range1 = currentRow;
+        let range2 = day + 1;
+        let range3 = eventRowsThisWeek +1
+        let range4 = 1;
+        let borderRange = calSheet.getRange(range1, range2, range3, range4);
+        borderRange.setBorder(true, true, true, true, false, false, 'grey', SpreadsheetApp.BorderStyle.SOLID);
+        borderRange.setVerticalAlignment('top');
+        borderRange.setWrap(true);
+      
         // Initial event cell styling (can be overwritten by event updates)
         if (day >= 5) {
-          cell.setBackground('#f9f9f9');
+          // Weekend Events
+          borderRange.setBackground('#d9d9d9');
         } else {
-          cell.setBackground('#ffffff');
+          // Weekday events
+          borderRange.setBackground('#ffffff');
         }
-      }
     }
-    
+
     currentRow += eventRowsThisWeek; // Add the dynamic number of event rows
     currentRow++; // Gap between weeks
+
   }
   
   // --- 4. Event Population and Final Formatting ---
@@ -473,7 +481,8 @@ function generateCalendar() {
         range: calSheet.getRange(row, col),
         value: eventText,
         fontColor: eventFontColor,
-        background: col >= 6 ? '#f9f9f9' : '#e3f2fd'
+        background: col >= 6 ? '#d9d9d9' : '#ffffff',
+        fontSize: col >= 6 ? 8 : 9,
       });
     });
   }
@@ -481,24 +490,21 @@ function generateCalendar() {
   // Apply all event updates
   updates.forEach(update => {
     update.range.setValue(update.value);
-    update.range.setFontSize(9);
+    update.range.setFontSize(update.fontSize);
     update.range.setFontColor(update.fontColor);
     update.range.setBackground(update.background);
-    update.range.setBorder(true, true, true, true, false, false, '#90caf9', SpreadsheetApp.BorderStyle.SOLID);
   });
 
-
-  // Final formatting
+  // Final formatting column width
   for (let col = 1; col <= 7; col++) {
-    calSheet.setColumnWidth(col, 160);
+    if (col >= 6) {
+      // Weekend Events
+      calSheet.setColumnWidth(col, 100);
+    } else {
+      // Weekday events
+      calSheet.setColumnWidth(col, 160);
+    }
   }
-  
-  // Add borders to the whole calendar block
-  const lastRow = currentRow - 1;
-  calSheet.getRange(3, 1, lastRow - 2, 7).setBorder(
-    true, true, true, true, true, true,
-    '#cccccc', SpreadsheetApp.BorderStyle.SOLID
-  );
   
   SpreadsheetApp.getActiveSpreadsheet().toast(`Calendar generated successfully! Loaded ${events.length} events from Google Calendar.`, 'Status', 7);
 }
