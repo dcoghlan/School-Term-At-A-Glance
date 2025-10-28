@@ -22,6 +22,12 @@ const RANGE_GENERATED = 'D2';
 const TXT_GENERATED = 'Last Generated: ';
 const DEFAULT_STALE_PERIOD_HRS = 6;
 
+// Default number of event rows allocated per week. If there are no events 
+// for the week, the week will still consits of this number of rows + a 
+// single padding row
+const MIN_EVENT_ROWS = 5;
+
+
 function listAllAccessibleCalendars() {
   // Use the CalendarApp service to retrieve all calendars the user can see.
   const calendars = CalendarApp.getAllCalendars();
@@ -198,6 +204,8 @@ function containsIgnoreName(eventTitle, ignoreString) {
 
 // Generate the calendar
 function generateCalendar() {
+  Logger.log("generateCalendar() function started executing.");
+
   const config = getConfig();
   Logger.log('Historical shading = ' + config.historicalShading)
   
@@ -219,13 +227,12 @@ function generateCalendar() {
   let events = [];
   const eventsByDate = {};
   const eventsByWeek = [];
-  const MIN_EVENT_ROWS = 5; 
 
   try {
     const calendar = CalendarApp.getCalendarById(calendarId) || CalendarApp.getDefaultCalendar();
     events = calendar.getEvents(startDate, endDate);
     
-    // Initialize eventsByWeek with the minimum row count
+    // Initialize eventsByWeek array with the minimum row count defined
     for (let i = 0; i < weekCount; i++) {
       eventsByWeek[i] = MIN_EVENT_ROWS; 
     }
