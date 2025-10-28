@@ -1,4 +1,4 @@
-// School Term Calendar Generator for Google Sheets (v21)
+// School Term Calendar Generator for Google Sheets (v23)
 // 
 // SETUP INSTRUCTIONS:
 // 1. Create a new Google Sheet
@@ -13,6 +13,9 @@
 // Configuration sheet name
 const CONFIG_SHEET = 'Config';
 const CALENDAR_SHEET = 'Term Calendar';
+
+// Define the suffix to use to temporarily rename the existing sheet upon sheet regeneration
+const CALENDAR_SHEET_BACKUP_SUFFIX = '.bak'
 
 // Other Variables
 const RANGE_GENERATED = 'D2';
@@ -303,26 +306,37 @@ function generateCalendar() {
   // --- END Event Fetching ---
 
 
-  // --- 2. Sheet Setup ---
+  // --- 2. Sheet New Term Planner Setup ---
+
+  // As the config sheet is hidden, we cannot delete the only remaining sheet in the spreadsheet, so we have to
+  // do the following dance
+
+  // a. Deletes any existing backup sheet
+  // b. Renames the existing calendar sheet as a backup
+  // c. Inserts the new calendar sheet
+  // d. Deletes the backup sheet
+
   let calSheet = ss.getSheetByName(CALENDAR_SHEET);
+  let calSheetBackupName = `${CALENDAR_SHEET}${CALENDAR_SHEET_BACKUP_SUFFIX}`
   
-  // Delete existing sheet for a completely clean slate
-  if (calSheet) {
-    if (ss.getSheets().length > 1) {
-        ss.deleteSheet(calSheet);
-    } else {
-        // If it's the ONLY sheet, just clear ALL formatting and content
-        calSheet.clear();
-        calSheet.clearFormats();
-        SpreadsheetApp.getUi().alert('The calendar sheet was the only sheet, so it was cleared instead of deleted.');
-    }
+  let calSheetBackup = ss.getSheetByName(calSheetBackupName);
+  if (calSheetBackup) {
+    ss.deleteSheet(calSheetBackup);
   }
-  
+
+  if (calSheet) {
+    calSheet.setName(calSheetBackupName)
+  }
+
   // Insert the new sheet at index 0 (first position)
   calSheet = ss.insertSheet(CALENDAR_SHEET, 0);
   calSheet.setHiddenGridlines(true);
   calSheet.activate();
   
+  calSheetBackup = ss.getSheetByName(calSheetBackupName);
+  if (calSheetBackup) {
+    ss.deleteSheet(calSheetBackup);
+  }
 
   // --- 3. Drawing the Calendar Structure ---
   
