@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-// School Term Calendar Generator for Google Sheets (v27)
+// School Term Calendar Generator for Google Sheets (v28)
  
 // SETUP INSTRUCTIONS:
 // 1. Create a new Google Sheet
@@ -280,6 +280,9 @@ function generateCalendar() {
   // The value is the maximum number of events for any given day during the week
   const eventsByWeek = [];
 
+  // Counter for number of ignored events
+  let ignoredEventsCounter = 0;
+
   try {
     const calendar = CalendarApp.getCalendarById(calendarId) || CalendarApp.getDefaultCalendar();
     events = calendar.getEvents(startDate, endDate);
@@ -299,6 +302,7 @@ function generateCalendar() {
       // the event title contains ANY of the strings provided
       if (config.ignoreNames.length > 0){
         if (containsIgnoreName(eventTitle, config.ignoreNames)) {
+          ignoredEventsCounter++;
           return;
         }
       }
@@ -575,6 +579,6 @@ function generateCalendar() {
       calSheet.setColumnWidth(col, 160);
     }
   }
-  
-  SpreadsheetApp.getActiveSpreadsheet().toast(`Calendar generated successfully! Loaded ${events.length} events from Google Calendar.`, 'Status', 7);
+
+  SpreadsheetApp.getActiveSpreadsheet().toast('Ignored ' + ignoredEventsCounter + ' events.', 'Success: ' + events.length + ' events loaded', 7);
 }
