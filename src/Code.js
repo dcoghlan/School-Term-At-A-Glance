@@ -1,4 +1,4 @@
-// School Term Calendar Generator for Google Sheets (v24)
+// School Term Calendar Generator for Google Sheets (v25)
 // 
 // SETUP INSTRUCTIONS:
 // 1. Create a new Google Sheet
@@ -267,13 +267,10 @@ function generateCalendar() {
           dayEnd.setDate(dayEnd.getDate() - 1);
       }
       
-      // Get the correct event display text (only show time for the start day)
+      // Do not show event start time if the event is an All Day event
       const eventTimeText = isAllDay 
           ? eventTitle 
           : `${eventTitle} [${Utilities.formatDate(eventStart, TIMEZONE, 'h:mma').toLowerCase()}]`;
-          
-      const eventTitleMultiDay = isAllDay ? eventTitle : eventTitle;
-
 
       // Loop through every day of the event
       let currentDateIterator = new Date(dayStart);
@@ -288,12 +285,13 @@ function generateCalendar() {
           let textToAdd = eventTimeText;
           if (Utilities.formatDate(currentDateIterator, TIMEZONE, 'yyyy/MM/dd') > Utilities.formatDate(dayStart, TIMEZONE, 'yyyy/MM/dd')) {
               // On days after the start day, just show the title to save space and remove repeated time
-              textToAdd = `${eventTitleMultiDay} (cont.)`;
+              textToAdd = `${eventTitle} (cont.)`;
           }
 
-          eventsByDate[eventDateStr].push(textToAdd);
-          
-          // Dynamic Row Calculation
+          // Add all day events to the beginiing of the array to ensure they are added
+          // before events with a start time defined.
+          isAllDay ? eventsByDate[eventDateStr].unshift(textToAdd) : eventsByDate[eventDateStr].push(textToAdd);
+
           const eventDateObj = new Date(eventDateStr);
           const daysDiff = Math.floor((eventDateObj - startDate) / (1000 * 60 * 60 * 24));
           const weekIndex = Math.floor(daysDiff / 7);
