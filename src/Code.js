@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-// School Term Calendar Generator for Google Sheets (v29)
+// School Term Calendar Generator for Google Sheets
  
 // SETUP INSTRUCTIONS:
 // 1. Create a new Google Sheet
@@ -46,8 +46,11 @@ const CALENDAR_SHEET_BACKUP_SUFFIX = '.bak'
 
 // Other Variables
 
+// Defines the location to display the title of the calendar
+const RANGE_TITLE = [1, 1, 1, 7];
+
 // Defines the location to display the last time the calendar was generated
-const RANGE_GENERATED = 'D2';
+const RANGE_GENERATED = [2, 1, 1, 7];
 
 // Defines the prefix for the text to display before the last time the
 // calendar was generated
@@ -231,7 +234,7 @@ function isStale() {
     return {};
   }
 
-  const dataRange = calSheet.getRange(RANGE_GENERATED);
+  const dataRange = calSheet.getRange(...RANGE_GENERATED);
   const dataValue = dataRange.getValue();
   const rawDate = dataValue.substring(TXT_GENERATED.length);
 
@@ -242,8 +245,10 @@ function isStale() {
   const hoursInMs = stalePeriodHrs * 60 * 60 * 1000
 
   const differenceMs = now.getTime() - storedDate.getTime()
+  Logger.log("isStale(): differenceMs: " + differenceMs)
   if (differenceMs > hoursInMs && hoursInMs > 0) {
-    dataRange.setFontColor('#ff0000');
+    dataRange.setFontColor('#ffffff');
+    dataRange.setBackground('#ff0000');
   }
 
 }
@@ -451,9 +456,9 @@ function generateCalendar() {
   }
 
   // --- 3. Drawing the Calendar Structure ---
-  
+
   // Set up title
-  calSheet.getRange(1,3,1,3)
+  calSheet.getRange(...RANGE_TITLE)
     .merge()
     .setValue(config.termName)
     .setFontSize(18)
@@ -466,8 +471,12 @@ function generateCalendar() {
   // Format: 'dd MMM yyyy HH:mm:ss' (e.g., '14 Oct 2025 22:19:38')
   const refreshTime = Utilities.formatDate(now, TIMEZONE, 'dd MMM yyyy HH:mm:ss');
   
-  calSheet.getRange(RANGE_GENERATED).setValue(TXT_GENERATED + refreshTime);
-  calSheet.getRange(RANGE_GENERATED).setFontSize(9).setFontColor('#666666').setHorizontalAlignment('center');
+  calSheet.getRange(...RANGE_GENERATED)
+    .merge()
+    .setValue(TXT_GENERATED + refreshTime)
+    .setFontSize(9)
+    .setFontColor('#666666')
+    .setHorizontalAlignment('center');
   
   const dateMap = {};
   let currentRow = 3; // Starts at week header row
