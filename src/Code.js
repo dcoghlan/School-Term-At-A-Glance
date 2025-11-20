@@ -32,6 +32,9 @@
 //    to the calendar you want to read events from
 // 9. Use "Term Calendar > Generate Calendar" to create the complete calendar.
 
+// Version number
+const VERSION = '0.0.30';
+
 // Defines the name of the sheet that config options are saved to/read from
 const CONFIG_SHEET = 'Config';
 
@@ -249,6 +252,25 @@ function containsIgnoreName(eventTitle, ignoreString) {
   const lowerText = eventTitle.toLowerCase();
   
   return ignoreString.some(item => lowerText.includes(item.toLowerCase()));
+}
+
+function _setVersion(lastRowIndex) {
+  /**
+   * Sets the version number in the Config sheet
+   * @returns {void}
+   */
+  Logger.log("setVersion() function started executing.");
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CALENDAR_SHEET);
+  
+  if (sheet) {
+    sheet.getRange(lastRowIndex, 1, 1, 7)
+      .merge()
+      .setValue('Version: v' + VERSION)
+      .setFontSize(9)
+      .setFontColor('#666666')
+      .setHorizontalAlignment('center');
+  }
 }
 
 // Generate the calendar
@@ -600,6 +622,9 @@ function generateCalendar() {
       calSheet.setColumnWidth(col, 160);
     }
   }
+
+  // Set the version number
+  _setVersion(currentRow);
 
   SpreadsheetApp.getActiveSpreadsheet().toast('Ignored ' + ignoredEventsCounter + ' events.', 'Success: ' + events.length + ' events loaded', 7);
 }
