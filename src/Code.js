@@ -33,7 +33,7 @@
 // 9. Use "Term Calendar > Generate Calendar" to create the complete calendar.
 
 // Version number
-const VERSION = '0.0.30';
+const VERSION = '0.0.31';
 
 // Defines the name of the sheet that config options are saved to/read from
 const CONFIG_SHEET = 'Config';
@@ -178,7 +178,7 @@ function getConfig() {
     return {};
   }
   
-  const data = configSheet.getRange('A2:B9').getValues();
+  const data = configSheet.getRange('A2:B10').getValues();
 
   // Check if it's a Date object before formatting
   let startDateString = data[1][1];
@@ -208,7 +208,8 @@ function getConfig() {
     historicalShading: data[4][1],
     stalePeriod: data[5][1],
     ignoreNames: ignoreNamesList,
-    displayEndTimes: data[7][1]
+    displayEndTimes: data[7][1],
+    hideHistoricalWeeks: data[8][1]
   }
 }
 
@@ -294,6 +295,9 @@ function generateCalendar() {
   const startDate = new Date(config.startDate);
   const weekCount = parseInt(config.weekCount);
   const TIMEZONE = Session.getScriptTimeZone(); // Define timezone once
+
+  // Set default behaviour for group collapsing
+  let collapseGroup = true;
 
   // --- 1. Event Fetching and Dynamic Row Calculation ---
   const calendarId = config.calendarId || 'primary';
@@ -518,6 +522,10 @@ function generateCalendar() {
         }
       }
 
+      if (Utilities.formatDate(currentDate, TIMEZONE, 'yyyy-MM-dd') >= Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd')) {
+        collapseGroup = false;
+      }
+
       // Activate the cell for the current week (if applicable))
       if (Utilities.formatDate(currentDate, TIMEZONE, 'yyyy-MM-dd') == Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd')) {
         const highlight = calSheet.getRange(dayHeaderRow - 1, day + 1);
@@ -570,6 +578,11 @@ function generateCalendar() {
     // Groups the weeks rows together so they can be hidden if required
     const range = calSheet.getRange(`${currentRow}:${currentRow + eventRowsThisWeek}`);
     range.shiftRowGroupDepth(1);
+
+    if (config.hideHistoricalWeeks && collapseGroup) {
+      const rowGroup = calSheet.getRowGroup(currentRow, 1);
+      rowGroup.collapse();
+    }
 
     currentRow += eventRowsThisWeek; // Add the dynamic number of event rows
     currentRow++; // Gap between weeks
