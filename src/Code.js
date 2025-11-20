@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-// School Term Calendar Generator for Google Sheets (v28)
+// School Term Calendar Generator for Google Sheets (v29)
  
 // SETUP INSTRUCTIONS:
 // 1. Create a new Google Sheet
@@ -172,7 +172,7 @@ function getConfig() {
     return {};
   }
   
-  const data = configSheet.getRange('A2:B8').getValues();
+  const data = configSheet.getRange('A2:B9').getValues();
 
   // Check if it's a Date object before formatting
   let startDateString = data[1][1];
@@ -201,7 +201,8 @@ function getConfig() {
     calendarId: data[3][1],
     historicalShading: data[4][1],
     stalePeriod: data[5][1],
-    ignoreNames: ignoreNamesList
+    ignoreNames: ignoreNamesList,
+    displayEndTimes: data[7][1]
   }
 }
 
@@ -340,10 +341,15 @@ function generateCalendar() {
           dayEnd.setDate(dayEnd.getDate() - 1);
       }
       
-      // Do not show event start time if the event is an All Day event
-      const eventTimeText = isAllDay 
-          ? eventTitle 
-          : `${eventTitle} [${Utilities.formatDate(eventStart, TIMEZONE, 'h:mma').toLowerCase()}]`;
+      let eventTimeText = eventTitle; 
+      if (!isAllDay) {
+        if (config.displayEndTimes) {
+          eventTimeText = `${eventTitle} [${Utilities.formatDate(eventStart, TIMEZONE, 'h:mma').toLowerCase()} - ${Utilities.formatDate(eventEnd, TIMEZONE, 'h:mma').toLowerCase()}]`;
+        } 
+        else {
+          eventTimeText = `${eventTitle} [${Utilities.formatDate(eventStart, TIMEZONE, 'h:mma').toLowerCase()}]`;
+        }
+      }
 
       // Loop through every day of the event
       let currentDateIterator = new Date(dayStart);
