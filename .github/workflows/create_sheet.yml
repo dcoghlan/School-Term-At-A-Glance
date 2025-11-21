@@ -1,0 +1,26 @@
+name: Create and Deploy Sheet
+
+on:
+  workflow_dispatch: # Allows manual triggering from the Actions tab
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20'
+
+    - name: Install Dependencies
+      run: npm install
+
+    - name: Run Deployment Script
+      env:
+        # This secret must contain the contents of your local ~/.clasprc.json
+        CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS_d88030555 }}
+      run: npm run deploy
