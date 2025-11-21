@@ -1,6 +1,6 @@
 # 🗓️ School-Term-At-A-Glance
 
-**Latest Release:** v0.0.32
+**Latest Release:** v0.0.33
 
 Welcome! This guide will help you set up the School Term At A Glance tool. You do not need to be a programmer to set this up. There are 2 methods to choose from to get this working, just pick which ever you are more comfortable with and follow the instructions.
 
@@ -143,17 +143,17 @@ If the calendar is empty or looks wrong, check the **Config** sheet
 
 ## FAQ
 
-Q: Finding my Google Calendar ID is difficult, is there an easier way?
-A: This is planned to be streamlined in a future release so that the configuration UI will present a list of available Google Calendars to choose from.
+Q: Finding my Google Calendar ID is difficult, is there an easier way?  
+A: The latest versions (>= 0.0.33) will auto-populate the list of calendars that are available to you to select from.
 
 Q: Can I change the colors, fonts, borders etc??  
-A: Yes it is possible to modify the formatting by editing the script manually. This ability will be added to the configuration UI in a future release
+A: Yes it is possible to modify the formatting by editing the script manually if you dare to do so. This ability will be added to the configuration UI in a future release
 
 Q: How do I know which version of the script my calendar is using?  
 A: The version number is listed at the bottom of the calendar.
 
 Q: I need to select a number of weeks which is not available in the configuration UI?  
-A: The options available in the configuraion UI were selected based on school terms in Sydney NSW. As a work around, just select one of the available options and generate the initial calendar. Once it has been generated, go into the Config sheet and update the `Week Count` value to whatever you need. The configuration UI will be updated in a future release and this will be fixed during that update.
+A: The latest version (>= 0.0.33) allows you to enter values between 1 and 52 for the number of weeks. This was limited to 52 weeks due to performance issues, however if for some reason you need a higher number, you can modify it directly in the HTML code as that is where the validation is done.
 
 Q: What will happen if I make changes to the generated calendar?  
 A: Due to the fact we completely delete the sheet and create a new sheet and calendar, the changes will be lost. The script only pulls events from the Google Calendar as the source of truth. If you want to keep a copy of the modified calendar, you can rename the sheet (tab) to something else, and when the calendar is regenreted, the old renamed one will not be deleted.

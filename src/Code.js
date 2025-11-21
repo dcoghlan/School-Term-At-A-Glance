@@ -33,7 +33,7 @@
 // 9. Use "Term Calendar > Generate Calendar" to create the complete calendar.
 
 // Version number
-const VERSION = '0.0.32';
+const VERSION = '0.0.33';
 
 // Defines the name of the sheet that config options are saved to/read from
 const CONFIG_SHEET = 'Config';
