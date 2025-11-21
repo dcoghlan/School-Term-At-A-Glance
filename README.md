@@ -137,9 +137,6 @@ A: Yes it is possible to modify the formatting by editing the script manually. T
 Q: How do I know which version of the script my calendar is using?  
 A: The version number is listed at the bottom of the calendar.
 
-Q: I selected a start date which was not a Monday and it screwed up the display of weeks?  
-A: This is a known issue. For the time being, the script requires that you select the Monday of the week you want to be week 1. This will be fixed in a future release.
-
 Q: I need to select a number of weeks which is not available in the configuration UI?  
 A: The options available in the configuraion UI were selected based on school terms in Sydney NSW. As a work around, just select one of the available options and generate the initial calendar. Once it has been generated, go into the Config sheet and update the `Week Count` value to whatever you need. The configuration UI will be updated in a future release and this will be fixed during that update.
 
