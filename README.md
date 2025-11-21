@@ -10,7 +10,7 @@ Welcome! This guide will help you set up the School Term At A Glance tool. You d
 ## Easy Installation Guide
 
 - Click the following link to "Make a copy" of a pre-configured Google Sheet with the code already installed
-  - [Latest Release Template](https://docs.google.com/spreadsheets/d/19-a3uYxDmoxx6wGMZ-7Cfp9sBx6aUySn8Yx5Tdbk_ic/copy)
+  - [Latest Release Template](https://docs.google.com/spreadsheets/d/19CMaI6o0mta8F4JC2jsLASh0S_7INRx7F4tzjqjWvzA/copy)
 - A Copy document screen will be shown with the message "*The attached Apps Script file and functionality will also be copied. Would you like to make a scopy of School-Term-At-A-Glance vx.x.x?*"
 - Click "**Make a copy**"
 - A copy of the file will be made in your "**My Drive**"
