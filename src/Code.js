@@ -33,7 +33,7 @@
 // 9. Use "Term Calendar > Generate Calendar" to create the complete calendar.
 
 // Version number
-const VERSION = '0.0.31';
+const VERSION = '0.0.32';
 
 // Defines the name of the sheet that config options are saved to/read from
 const CONFIG_SHEET = 'Config';
@@ -50,11 +50,19 @@ const CALENDAR_SHEET_BACKUP_SUFFIX = '.bak'
 const RANGE_TITLE = [1, 1, 1, 7];
 
 // Defines the location to display the last time the calendar was generated
-const RANGE_GENERATED = [2, 1, 1, 7];
+const LAST_GENERATED_RANGE = [2, 1, 1, 7];
+
+// Formatting options for the last generated date
+const LAST_GENERATED_FONT_COLOR = '#666666';
+const LAST_GENERATED_FONT_SIZE = 9;
+const LAST_GENERATED_BACKGROUND_COLOR = '#ffffff';
+const LAST_GENERATED_HORIZONTAL_ALIGNMENT = 'center';
+const LAST_GENERATED_STALE_FONT_COLOR = '#ffffff';
+const LAST_GENERATED_STALE_BACKGROUND_COLOR = '#ff0000';
 
 // Defines the prefix for the text to display before the last time the
 // calendar was generated
-const TXT_GENERATED = 'Last Generated: ';
+const LAST_GENERATED_TEXT = 'Last Generated: ';
 
 // Default time period in hours after the last time the calendar was generated
 // to mark the calendar as having stale data. This is used to display a subtle
@@ -235,9 +243,9 @@ function isStale() {
     return {};
   }
 
-  const dataRange = calSheet.getRange(...RANGE_GENERATED);
+  const dataRange = calSheet.getRange(...LAST_GENERATED_RANGE);
   const dataValue = dataRange.getValue();
-  const rawDate = dataValue.substring(TXT_GENERATED.length);
+  const rawDate = dataValue.substring(LAST_GENERATED_TEXT.length);
 
   const storedDate = new Date(rawDate);
   const now = new Date();
@@ -248,8 +256,11 @@ function isStale() {
   const differenceMs = now.getTime() - storedDate.getTime()
   Logger.log("isStale(): differenceMs: " + differenceMs)
   if (differenceMs > hoursInMs && hoursInMs > 0) {
-    dataRange.setFontColor('#ffffff');
-    dataRange.setBackground('#ff0000');
+    dataRange.setFontColor(LAST_GENERATED_STALE_FONT_COLOR);
+    dataRange.setBackground(LAST_GENERATED_STALE_BACKGROUND_COLOR);
+  } else {
+    dataRange.setFontColor(LAST_GENERATED_FONT_COLOR);
+    dataRange.setBackground(LAST_GENERATED_BACKGROUND_COLOR);
   }
 
 }
@@ -475,12 +486,13 @@ function generateCalendar() {
   // Format: 'dd MMM yyyy HH:mm:ss' (e.g., '14 Oct 2025 22:19:38')
   const refreshTime = Utilities.formatDate(now, TIMEZONE, 'dd MMM yyyy HH:mm:ss');
   
-  calSheet.getRange(...RANGE_GENERATED)
+  calSheet.getRange(...LAST_GENERATED_RANGE)
     .merge()
-    .setValue(TXT_GENERATED + refreshTime)
-    .setFontSize(9)
-    .setFontColor('#666666')
-    .setHorizontalAlignment('center');
+    .setValue(LAST_GENERATED_TEXT + refreshTime)
+    .setFontSize(LAST_GENERATED_FONT_SIZE)
+    .setFontColor(LAST_GENERATED_FONT_COLOR)
+    .setBackground(LAST_GENERATED_BACKGROUND_COLOR)
+    .setHorizontalAlignment(LAST_GENERATED_HORIZONTAL_ALIGNMENT);
   
   const dateMap = {};
   let currentRow = 3; // Starts at week header row
