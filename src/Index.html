@@ -42,11 +42,41 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
           align-items: center; /* Vertically center items */
           margin-bottom: 15px; /* Add margin back for spacing */
       }
-      #historicalShading {
+      
+      /* Targets ALL checkboxes inside a checkbox-container */
+      .checkbox-container input[type="checkbox"] {
           width: auto; /* Allow checkbox to be its natural size */
           margin-right: 8px; /* Space between checkbox and text */
       }
+
+      /* Styles for the collapsible Advanced section */
+      details {
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        padding: 10px;
+        margin-bottom: 15px;
+        background-color: #f9f9f9;
+      }
+      summary {
+        cursor: pointer;
+        font-weight: bold;
+        color: #444;
+        outline: none;
+        margin-bottom: 15px; /* Added space specifically below the summary text */
+      }
+      summary:hover {
+        color: #000;
+      }
+      /* Add spacing to the content inside details when expanded */
+      details > div {
+        margin-top: 10px;
+        padding-left: 5px; /* Slight indent for hierarchy */
+        border-top: 1px solid #eee; /* Separator line */
+        padding-top: 20px; /* Increased padding to separate from the line */
+      }
     </style>
+    
+    <!-- MAIN CONFIGURATION -->
     <div class="form-group">
       <label>Term Name:</label>
       <input type="text" id="termName" placeholder="e.g., Term 1 2025"></input>
@@ -56,62 +86,163 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
       <label>Start Date:</label>
       <input type="date" id="startDate">
     </div>
-    
+
     <div class="form-group">
       <label>Number of Weeks:</label>
-      <select id="weekCount">
-        <option value="9">9 weeks</option>
-        <option value="10" selected>10 weeks</option>
-        <option value="11">11 weeks</option>
-      </select>
-    </div>
-    
-    <div class="form-group">
-      <label>Historical events shading:</label>
-    </div>
-    <div class="checkbox-container">
-      <input type="checkbox" id="historicalShading">
-      <div class="help">Enable shading of historical events</div>
+      <!-- type="number" triggers numeric keypads on mobile -->
+      <!-- min/max sets the limits -->
+      <!-- step="1" helps enforce integers (prevents decimals) -->
+      <input type="number" id="weekCount" min="1" max="52" step="1" value="10">
+      <div class="help">Enter a duration between 1 and 52 weeks.</div>
     </div>
 
     <div class="form-group">
-      <label>Google Calendar ID:</label>
-      <input type="text" id="calendarId" placeholder="Leave blank for primary calendar">
+      <label>Select Google Calendar:</label>
+      <select id="calendarId">
+        <option value="" disabled selected>Loading calendars...</option>
+      </select>
       <div class="help">
-        To find your Calendar ID: Open Google Calendar → Settings → 
-        Select your calendar → Scroll to "Integrate calendar" → Copy the Calendar ID
+        Select the calendar where events will be created.
       </div>
     </div>
 
-    <div class="form-group">
-      <label>Stale data period:</label>
-      <input type="text" id="stalePeriod" placeholder="Leave blank for default = 6">
-      <div class="help">Period after which a visual indicator will be displayed to remind to regenerate the calendar</div>
-    </div>
+    <!-- ADVANCED CONFIGURATION (Collapsible) -->
+    <details>
+      <summary>Advanced Configuration</summary>
+      <div>
+        <!-- Stale Period -->
+        <div class="form-group">
+          <label>Stale data period:</label>
+          <input type="text" id="stalePeriod" placeholder="Leave blank for default = 6">
+          <div class="help">Period (hrs) for visual stale indicator</div>
+        </div>
+
+        <!-- Ignore Names -->
+        <div class="form-group">
+          <label>Ignore Event Titles:</label>
+          <input type="text" id="ignoreNames" placeholder="e.g. Holiday, Staff Day">
+          <div class="help">Comma-separated list of event titles to ignore</div>
+        </div>
+
+        <!-- Historical Shading -->
+        <div class="form-group">
+          <label>Historical events shading:</label>
+        </div>
+        <div class="checkbox-container">
+          <input type="checkbox" id="historicalShading">
+          <div class="help">Enable shading of historical events</div>
+        </div>
+        
+        <!-- Hide Historical Weeks -->
+        <div class="form-group">
+          <label>Hide historical weeks:</label>
+        </div>
+        <div class="checkbox-container">
+          <input type="checkbox" id="hideHistoricalWeeks">
+          <div class="help">Collapse/hide historical weeks by default</div>
+        </div>
+
+        <!-- Display End Times -->
+        <div class="form-group">
+          <label>Display event end times:</label>
+        </div>
+        <div class="checkbox-container">
+          <input type="checkbox" id="displayEndTimes">
+          <div class="help">Display event end times for each event</div>
+        </div>
+      </div>
+    </details>
 
     <button onclick="saveConfig()">Save Configuration</button>
     
     <script>
-      // Load existing config
-      google.script.run.withSuccessHandler(function(config) {
-        // This message will appear in the BROWSER's F12 Developer Console, not the Apps Script Logs
-        console.log('CLIENT: Successfully received config data:', config);
-        if (config.termName) document.getElementById('termName').value = config.termName;
-        if (config.startDate) document.getElementById('startDate').value = config.startDate;
-        if (config.weekCount) document.getElementById('weekCount').value = config.weekCount;
-        if (config.calendarId) document.getElementById('calendarId').value = config.calendarId;
-        if (config.historicalShading) document.getElementById('historicalShading').checked = config.historicalShading;
-        if (config.stalePeriod) document.getElementById('stalePeriod').value = config.stalePeriod;
-      }).getConfig();
+      // We need to chain the calls:
+      // 1. Get the list of calendars and populate the dropdown.
+      // 2. THEN get the saved config and set the values.
+      // This prevents trying to set a value on the dropdown before the options exist.
+
+      function loadForm() {
+        google.script.run.withSuccessHandler(function(calendars) {
+          const select = document.getElementById('calendarId');
+          select.innerHTML = ''; // Clear 'Loading...' message
+
+          // Add a default "Primary" option if desired, or just list what comes back
+          calendars.forEach(function(cal) {
+            const option = document.createElement('option');
+            option.value = cal.id;
+            // Display "Name (Primary)" if it is the primary calendar
+            option.text = cal.name + (cal.isPrimary ? ' (Primary)' : '');
+            select.appendChild(option);
+          });
+
+          // Now that options are loaded, fetch the saved config
+          fetchConfig();
+
+        }).getUserCalendars();
+      }
+
+      function fetchConfig() {
+        google.script.run.withSuccessHandler(function(config) {
+          console.log('CLIENT: Successfully received config data:', config);
+          
+          if (config.termName) document.getElementById('termName').value = config.termName;
+          if (config.startDate) document.getElementById('startDate').value = config.startDate;
+          if (config.weekCount) document.getElementById('weekCount').value = config.weekCount;
+          if (config.historicalShading) document.getElementById('historicalShading').checked = config.historicalShading;
+          if (config.stalePeriod) document.getElementById('stalePeriod').value = config.stalePeriod;
+          if (config.hideHistoricalWeeks) document.getElementById('hideHistoricalWeeks').checked = config.hideHistoricalWeeks;
+          if (config.displayEndTimes) document.getElementById('displayEndTimes').checked = config.displayEndTimes;
+          // ignoreNames comes as an array from the server, we join it for the text box
+          if (config.ignoreNames && Array.isArray(config.ignoreNames)) {
+            document.getElementById('ignoreNames').value = config.ignoreNames.join(', ');
+          }
+          
+          // Set the calendar dropdown
+          if (config.calendarId) {
+            const select = document.getElementById('calendarId');
+            // Check if the saved ID actually exists in our list (user might have lost access)
+            let exists = false;
+            for(let i = 0; i < select.options.length; i++){
+                if(select.options[i].value == config.calendarId){
+                    exists = true;
+                    break;
+                }
+            }
+            // Set it if it exists, otherwise it defaults to the first in the list (usually Primary)
+            if(exists) {
+                select.value = config.calendarId;
+            }
+          }
+        }).getConfig();
+      }
+
+      // Start the loading process
+      loadForm();
       
       function saveConfig() {
+        // 1. Validate Number of Weeks
+        const weekInput = document.getElementById('weekCount');
+        const weekVal = parseInt(weekInput.value, 10);
+
+        if (isNaN(weekVal) || weekVal < 1 || weekVal > 52) {
+          alert("Please enter a number of weeks between 1 and 52.");
+          return;
+        }
+
+        // 2. Convert ignoreNames comma-string back to array for the server
+        const ignoreNamesRaw = document.getElementById('ignoreNames').value;
+        const ignoreNamesArray = ignoreNamesRaw.split(',').map(s => s.trim()).filter(s => s !== '');
+
         const config = {
           termName: document.getElementById('termName').value,
           startDate: document.getElementById('startDate').value,
-          weekCount: document.getElementById('weekCount').value,
+          weekCount: weekVal, // Use the parsed integer
           calendarId: document.getElementById('calendarId').value,
           historicalShading: document.getElementById('historicalShading').checked,
-          stalePeriod: document.getElementById('stalePeriod').value
+          stalePeriod: document.getElementById('stalePeriod').value,
+          hideHistoricalWeeks: document.getElementById('hideHistoricalWeeks').checked,
+          displayEndTimes: document.getElementById('displayEndTimes').checked,
+          ignoreNames: ignoreNamesArray
         };
         console.log('CLIENT: Submitting config: ', config);
         google.script.run.withSuccessHandler(function() {
