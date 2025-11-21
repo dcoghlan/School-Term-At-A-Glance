@@ -220,18 +220,26 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
       loadForm();
       
       function saveConfig() {
-        // Convert ignoreNames comma-string back to array for the server
+        // 1. Validate Number of Weeks
+        const weekInput = document.getElementById('weekCount');
+        const weekVal = parseInt(weekInput.value, 10);
+
+        if (isNaN(weekVal) || weekVal < 1 || weekVal > 52) {
+          alert("Please enter a number of weeks between 1 and 52.");
+          return;
+        }
+
+        // 2. Convert ignoreNames comma-string back to array for the server
         const ignoreNamesRaw = document.getElementById('ignoreNames').value;
         const ignoreNamesArray = ignoreNamesRaw.split(',').map(s => s.trim()).filter(s => s !== '');
 
         const config = {
           termName: document.getElementById('termName').value,
           startDate: document.getElementById('startDate').value,
-          weekCount: document.getElementById('weekCount').value,
+          weekCount: weekVal, // Use the parsed integer
           calendarId: document.getElementById('calendarId').value,
           historicalShading: document.getElementById('historicalShading').checked,
           stalePeriod: document.getElementById('stalePeriod').value,
-          // New fields
           hideHistoricalWeeks: document.getElementById('hideHistoricalWeeks').checked,
           displayEndTimes: document.getElementById('displayEndTimes').checked,
           ignoreNames: ignoreNamesArray
