@@ -134,6 +134,51 @@ const DEFAULT_STALE_PERIOD_HRS = 6;
 // single padding row
 const MIN_EVENT_ROWS = 5;
 
+/**
+ * Fetches a list of all calendars the user has access to.
+ * Used to populate the dropdown in the HTML sidebar/modal.
+ * * @return {Array<Object>} An array of objects containing calendar ID, Name, and Primary status.
+ */
+function getUserCalendars() {
+  try {
+    // Get all calendars the user can access (Owner, Reader, or Writer)
+    var calendars = CalendarApp.getAllCalendars();
+    
+    var calendarList = [];
+    
+    for (var i = 0; i < calendars.length; i++) {
+      var cal = calendars[i];
+      calendarList.push({
+        id: cal.getId(),
+        name: cal.getName(),
+        isPrimary: cal.isMyPrimaryCalendar()
+      });
+    }
+    
+    // Optional: Sort by name, but keep Primary at the top
+    calendarList.sort(function(a, b) {
+      if (a.isPrimary) return -1;
+      if (b.isPrimary) return 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    Logger.log("--- All Accessible Calendars ---");
+  
+    // Loop through the array of Calendar objects
+    calendarList.forEach(calendar => {
+      
+      // Log details for easy viewing
+      Logger.log(`Name: ${calendar.name} | ID: ${calendar.id} | Owned: ${calendar.isPrimary}`);
+    });
+
+    return calendarList;
+    
+  } catch (e) {
+    Logger.log('Error fetching calendars: ' + e.toString());
+    // Return an empty list or a dummy error object to handle on client side
+    return [];
+  }
+}
 
 function listAllAccessibleCalendars() {
   // Use the CalendarApp service to retrieve all calendars the user can see.
@@ -174,6 +219,7 @@ function listAllAccessibleCalendars() {
       id: calendarId,
       owned: isOwned
     });
+    Logger.log("calendarList: " + calendarList);
   });
   
   // Return the full list (optional)
@@ -208,78 +254,86 @@ function showConfigDialog() {
   SpreadsheetApp.getUi().showModalDialog(html, 'Configure Term Calendar');
 }
 
-// Save configuration
+/**
+ * Saves the configuration using the PropertiesService (DocumentProperties).
+ * This replaces the need for a visible 'Config' sheet.
+ * @param {Object} config - The configuration object from the client.
+ */
 function saveConfig(config) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let configSheet = ss.getSheetByName(CONFIG_SHEET);
-  
-  if (!configSheet) {
-    // Insert Config sheet at the second position (index 1) for tidiness
-    configSheet = ss.insertSheet(CONFIG_SHEET, 1);
-  }
-  
-  configSheet.clear();
-  configSheet.getRange('A1:B7').setValues([
-    ['Setting', 'Value'],
-    ['Term Name', config.termName],
-    ['Start Date', config.startDate],
-    ['Week Count', config.weekCount],
-    ['Calendar ID', config.calendarId],
-    ['Historical Date Shading', config.historicalShading],
-    ['Stale Period (Hrs)', config.stalePeriod]
+  try {
+    const props = PropertiesService.getDocumentProperties();
+    
+    // Prepare the payload. PropertiesService only stores STRINGS.
+    // We must convert booleans and numbers to strings explicitly to be safe,
+    // though .setProperties() handles most primitives automatically.
+    const payload = {
+      termName: config.termName || '',
+      startDate: config.startDate || '',
+      weekCount: String(config.weekCount || '10'),
+      calendarId: config.calendarId || '',
+      historicalShading: String(config.historicalShading), // 'true' or 'false'
+      stalePeriod: config.stalePeriod || '',
+      ignoreNames: config.ignoreNames ? config.ignoreNames.join(',') : '',
+      displayEndTimes: String(config.displayEndTimes || 'false'),
+      hideHistoricalWeeks: String(config.hideHistoricalWeeks || 'false')
+    };
 
-  ]);
-  
-  configSheet.getRange('A1:B1').setFontWeight('bold');
-  configSheet.setColumnWidth(1, 150);
-  configSheet.setColumnWidth(2, 300);
+    props.setProperties(payload);
+    Logger.log("Configuration saved successfully via PropertiesService.");
+    
+  } catch (e) {
+    Logger.log("Error in saveConfig: " + e.toString());
+    throw e;
+  }
 }
 
-// Get configuration
+/**
+ * Retrieves the configuration from PropertiesService.
+ * @return {Object} The configuration object.
+ */
 function getConfig() {
   Logger.log("getConfig() function started executing.");
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const configSheet = ss.getSheetByName(CONFIG_SHEET);
-  
-  if (!configSheet) {
-    Logger.log("getConfig() no config sheet found.");
+  const props = PropertiesService.getDocumentProperties();
+  const data = props.getProperties();
+  Logger.log("getConfig(): data: " + JSON.stringify(data));
+  // If no data exists (first run), return an empty object or defaults
+  if (Object.keys(data).length === 0) {
+    Logger.log("getConfig() no properties found.");
     return {};
   }
-  
-  const data = configSheet.getRange('A2:B10').getValues();
 
-  // Check if it's a Date object before formatting
-  let startDateString = data[1][1];
-  if (startDateString instanceof Date) {
-    startDateString = Utilities.formatDate(startDateString, ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
-    Logger.log("getConfig() Formatted start date to string: " + startDateString);
-  }
-  
-  // Check the "ignore" config item and convert to list if vales are found
-  const ignoreNamesRaw = data[6][1];
+  // Reconstruct 'ignoreNames' list from comma-separated string
   let ignoreNamesList = [];
- 
-  if (ignoreNamesRaw || ignoreNamesRaw.trim() !== '') {
-    ignoreNamesList = ignoreNamesRaw.split(',')
-      .map(word => word.trim())
-      .filter(word => word !== '');
+  if (data.ignoreNames && data.ignoreNames.trim() !== '') {
+    ignoreNamesList = data.ignoreNames.split(',')
+      .map(function(word) { return word.trim(); })
+      .filter(function(word) { return word !== ''; });
   }
-  Logger.log("getConfig(): ignoreList (length " + ignoreNamesList.length + "): " + ignoreNamesList)
-  const jsonString = JSON.stringify(data, null, 2);
-  Logger.log("getConfig(): config data: " + jsonString)
 
-  return {
-    termName: data[0][1],
-    startDate: startDateString,
-    weekCount: data[2][1],
-    calendarId: data[3][1],
-    historicalShading: data[4][1],
-    stalePeriod: data[5][1],
+  // Parse Booleans (PropertiesService returns 'true'/'false' strings)
+  const historicalShadingBool = (data.historicalShading === 'true');
+  const displayEndTimesBool = (data.displayEndTimes === 'true');
+  const hideHistoricalWeeksBool = (data.hideHistoricalWeeks === 'true');
+
+  // Calculate Monday start date using your helper function from get_monday.js
+  // Note: getMondayOfWeek expects "YYYY-MM-DD" string, which is how we stored it.
+  const mondayStart = getMondayOfWeek_(data.startDate);
+
+  const configObject = {
+    termName: data.termName,
+    startDate: data.startDate,
+    weekCount: parseInt(data.weekCount, 10),
+    calendarId: data.calendarId,
+    historicalShading: historicalShadingBool,
+    stalePeriod: data.stalePeriod,
     ignoreNames: ignoreNamesList,
-    displayEndTimes: data[7][1],
-    hideHistoricalWeeks: data[8][1],
-    mondayStartDate: getMondayOfWeek_(startDateString)
-  }
+    displayEndTimes: displayEndTimesBool,
+    hideHistoricalWeeks: hideHistoricalWeeksBool,
+    mondayStartDate: mondayStart
+  };
+
+  Logger.log("getConfig(): config data: " + JSON.stringify(configObject));
+  return configObject;
 }
 
 // Test date object time for 00:00:00
