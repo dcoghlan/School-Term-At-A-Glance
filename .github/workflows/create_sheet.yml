@@ -23,4 +23,5 @@ jobs:
       env:
         # This secret must contain the contents of your local ~/.clasprc.json
         CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS_d88030555 }}
+        DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
       run: npm run deploy

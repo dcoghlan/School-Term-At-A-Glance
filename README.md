@@ -1,10 +1,25 @@
 # 🗓️ School-Term-At-A-Glance
 
-**Latest Release:** v0.0.31
+**Latest Release:** v0.0.32
 
-## Installation Guide
+Welcome! This guide will help you set up the School Term At A Glance tool. You do not need to be a programmer to set this up. There are 2 methods to choose from to get this working, just pick which ever you are more comfortable with and follow the instructions.
 
-Welcome! This guide will help you set up the School Term At A Glance tool. You do not need to be a programmer to set this up—just follow these steps one by one.
+- [Easy Installation Guide](README.md#easy-installation-guide)
+- [Manual Installation Guide](README.md#manual-installation-guide)
+
+## Easy Installation Guide
+
+- Click the following link to "Make a copy" of a pre-configured Google Sheet with the code already installed
+  - [Latest Release Template](https://docs.google.com/spreadsheets/d/19-a3uYxDmoxx6wGMZ-7Cfp9sBx6aUySn8Yx5Tdbk_ic/copy)
+- A Copy document screen will be shown with the message "*The attached Apps Script file and functionality will also be copied. Would you like to make a scopy of School-Term-At-A-Glance vx.x.x?*"
+- Click "**Make a copy**"
+- A copy of the file will be made in your "**My Drive**"
+- Wait about 10-20 seconds.
+- Look at the top menu bar (next to "Help"). You should see a new menu appear called "**Term Calendar**".
+- Execute [Step 6](README.md#step-6-the-first-run-authorization) from the Manual Installation Guide.
+- Run the [Configuration Guide](README.md#configuration-guide) steps.
+
+## Manual Installation Guide
 
 ### Prerequisite: Get the Code
 
@@ -70,7 +85,7 @@ The first time you try to run the tool, Google will ask for permission. This is 
 
 The script should now run and you will be presented with the **Configure Term Calendar**. You won't have to do this authorization step again unless the code changes significantly.
 
-## ⚙️ Configuration Guide
+## Configuration Guide
 
 There are several items that are required to be configured so as to generate a Term Calendar. 
 
