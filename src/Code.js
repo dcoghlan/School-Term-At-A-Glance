@@ -217,7 +217,8 @@ function getConfig() {
     stalePeriod: data[5][1],
     ignoreNames: ignoreNamesList,
     displayEndTimes: data[7][1],
-    hideHistoricalWeeks: data[8][1]
+    hideHistoricalWeeks: data[8][1],
+    mondayStartDate: getMondayOfWeek_(startDateString)
   }
 }
 
@@ -290,6 +291,42 @@ function _setVersion(lastRowIndex) {
   }
 }
 
+/**
+ * Returns the date of the Monday for the week of the given date.
+ * (Weeks start on Monday and end on Sunday).
+ * * @param {string} dateString - The date in "yyyy-MM-dd" format.
+ * @return {string} The date of the Monday in "yyyy-MM-dd" format.
+ */
+function getMondayOfWeek_(dateString) {
+  if (!dateString) return null;
+
+  // 1. Parse the input string manually to ensure consistent local time handling.
+  var parts = dateString.split('-');
+  var year = parseInt(parts[0], 10);
+  var month = parseInt(parts[1], 10) - 1; // Months are 0-indexed (0 = Jan)
+  var day = parseInt(parts[2], 10);
+
+  var date = new Date(year, month, day);
+
+  // 2. Calculate the offset to get to Monday.
+  // date.getDay() returns 0 for Sunday, 1 for Monday, ... 6 for Saturday.
+  var dayOfWeek = date.getDay();
+
+  // We want Monday to be index 0 and Sunday to be index 6 for calculation.
+  // The formula (dayOfWeek + 6) % 7 achieves this shift:
+  // Mon (1) -> (1+6)%7 = 0 (0 days back)
+  // Tue (2) -> (2+6)%7 = 1 (1 day back)
+  // ...
+  // Sun (0) -> (0+6)%7 = 6 (6 days back)
+  var distanceToMonday = (dayOfWeek + 6) % 7;
+
+  // 3. Adjust the date
+  date.setDate(date.getDate() - distanceToMonday);
+
+  // 4. Format and return the string using the Script's timezone
+  return Utilities.formatDate(date, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+
 // Generate the calendar
 function generateCalendar() {
   Logger.log("generateCalendar() function started executing.");
@@ -303,7 +340,7 @@ function generateCalendar() {
   }
   
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const startDate = new Date(config.startDate);
+  const startDate = new Date(config.mondayStartDate);
   const weekCount = parseInt(config.weekCount);
   const TIMEZONE = Session.getScriptTimeZone(); // Define timezone once
 
