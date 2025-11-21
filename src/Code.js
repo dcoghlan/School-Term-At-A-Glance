@@ -44,10 +44,18 @@ const CALENDAR_SHEET = 'Term Calendar';
 // Define the suffix to use to temporarily rename the existing sheet upon sheet regeneration
 const CALENDAR_SHEET_BACKUP_SUFFIX = '.bak'
 
+// Define the text to be added to a multiple day event title to indicate that the event spans multiple days
+const MULTIPLE_DAY_EVENT_TEXT = '(cont.)';
+
 // Other Variables
 
 // Defines the location to display the title of the calendar
-const RANGE_TITLE = [1, 1, 1, 7];
+const TITLE_RANGE = [1, 1, 1, 7];
+
+// Formatting options for the title
+const TITLE_FONT_SIZE = 18;
+const TITLE_FONT_WEIGHT = 'bold';
+const TITLE_HORIZONTAL_ALIGNMENT = 'center';
 
 // Defines the location to display the last time the calendar was generated
 const LAST_GENERATED_RANGE = [2, 1, 1, 7];
@@ -63,6 +71,58 @@ const LAST_GENERATED_STALE_BACKGROUND_COLOR = '#ff0000';
 // Defines the prefix for the text to display before the last time the
 // calendar was generated
 const LAST_GENERATED_TEXT = 'Last Generated: ';
+
+// Formatting options for the version number
+const VERSION_FONT_COLOR = '#666666';
+const VERSION_FONT_SIZE = 9;
+const VERSION_BACKGROUND_COLOR = '#ffffff';
+
+// Defines the text to display before the version number
+const VERSION_TEXT = 'Version: v';
+
+// Border formatting options
+
+const BORDER_STYLE = SpreadsheetApp.BorderStyle.SOLID;
+const BORDER_COLOR = 'grey';
+
+// Formatting options for the week headers
+const WEEK_HEADER_FONT_COLOR = '#ffffff';
+const WEEK_HEADER_FONT_WEIGHT = 'bold';
+const WEEK_HEADER_BACKGROUND_COLOR = '#4285f4';
+const WEEK_HEADER_HORIZONTAL_ALIGNMENT = 'center';
+
+// Defines the text to display before the week headers
+const WEEK_HEADER_TEXT = 'Week';
+
+// Defines the text to display for the day headers
+const DAY_HEADER_FONT_WEIGHT = 'bold';
+const DAY_HEADER_HORIZONTAL_ALIGNMENT = 'center';
+const DAY_HEADER_VERTICAL_ALIGNMENT = 'top';
+const DAY_HEADER_WRAP = true;
+
+// Defines background colors for weekdays and weekends
+const WEEKDAY_HEADER_BACKGROUND_COLOR = '#ffffff';
+const WEEKEND_HEADER_BACKGROUND_COLOR = '#f3f3f3';
+
+// Defines background colors for weekdays and weekends events cells
+const WEEKDAY_EVENTS_BACKGROUND_COLOR = '#ffffff';
+const WEEKEND_EVENTS_BACKGROUND_COLOR = '#d9d9d9';
+
+// Defines font sizes for weekdays and weekends
+const WEEKDAY_FONT_SIZE = 9;
+const WEEKEND_FONT_SIZE = 8;
+
+// Defines the column widths for weekdays and weekends
+const WEEKDAY_COLUMN_WIDTH = 160;
+const WEEKEND_COLUMN_WIDTH = 100;
+
+// Define the default event text color
+const DEFAULT_EVENT_FONT_COLOR = '#000000';
+const DEFAULT_EVENT_VERTICAL_ALIGNMENT = 'top';
+const DEFAULT_EVENT_WRAP = true;
+
+// Defines historical shading color
+const HISTORICAL_SHADING_FONT_COLOR = '#b7b7b7';
 
 // Default time period in hours after the last time the calendar was generated
 // to mark the calendar as having stale data. This is used to display a subtle
@@ -283,9 +343,10 @@ function _setVersion(lastRowIndex) {
   if (sheet) {
     sheet.getRange(lastRowIndex, 1, 1, 7)
       .merge()
-      .setValue('Version: v' + VERSION)
-      .setFontSize(9)
-      .setFontColor('#666666')
+      .setValue(VERSION_TEXT + VERSION)
+      .setFontSize(VERSION_FONT_SIZE)
+      .setFontColor(VERSION_FONT_COLOR)
+      .setBackground(VERSION_BACKGROUND_COLOR)
       .setHorizontalAlignment('center');
   }
 }
@@ -406,7 +467,7 @@ function generateCalendar() {
           let textToAdd = eventTimeText;
           if (Utilities.formatDate(currentDateIterator, TIMEZONE, 'yyyy/MM/dd') > Utilities.formatDate(dayStart, TIMEZONE, 'yyyy/MM/dd')) {
               // On days after the start day, just show the title to save space and remove repeated time
-              textToAdd = `${eventTitle} (cont.)`;
+              textToAdd = `${eventTitle} ${MULTIPLE_DAY_EVENT_TEXT}`;
           }
 
           // Add all day events to the beginiing of the array to ensure they are added
@@ -473,12 +534,12 @@ function generateCalendar() {
   // --- 3. Drawing the Calendar Structure ---
 
   // Set up title
-  calSheet.getRange(...RANGE_TITLE)
+  calSheet.getRange(...TITLE_RANGE)
     .merge()
     .setValue(config.termName)
-    .setFontSize(18)
-    .setFontWeight('bold')
-    .setHorizontalAlignment('center')
+    .setFontSize(TITLE_FONT_SIZE)
+    .setFontWeight(TITLE_FONT_WEIGHT)
+    .setHorizontalAlignment(TITLE_HORIZONTAL_ALIGNMENT)
     .activate();
   
   // Show the time the calendar was generated
@@ -504,11 +565,11 @@ function generateCalendar() {
     // Week header
     calSheet.getRange(currentRow, 1, 1, 7)
       .merge()
-      .setValue(`Week ${week + 1}`)
-      .setBackground('#4285f4')
-      .setFontColor('#ffffff')
-      .setFontWeight('bold')
-      .setHorizontalAlignment('center');
+      .setValue(`${WEEK_HEADER_TEXT} ${week + 1}`)
+      .setBackground(WEEK_HEADER_BACKGROUND_COLOR)
+      .setFontColor(WEEK_HEADER_FONT_COLOR)
+      .setFontWeight(WEEK_HEADER_FONT_WEIGHT)
+      .setHorizontalAlignment(WEEK_HEADER_HORIZONTAL_ALIGNMENT);
     
     currentRow++; // Moves to day header row
     
@@ -522,15 +583,15 @@ function generateCalendar() {
       
       const cell = calSheet.getRange(dayHeaderRow, day + 1);
       cell.setValue(`${days[day].substring(0, 3)} ${Utilities.formatDate(currentDate, TIMEZONE, 'MMM d')}`);
-      cell.setFontWeight('bold');
-      cell.setVerticalAlignment('top');
-      cell.setHorizontalAlignment('center');
-      cell.setWrap(true);
-      cell.setBorder(true, true, true, true, false, false, 'grey', SpreadsheetApp.BorderStyle.SOLID);
+      cell.setFontWeight(DAY_HEADER_FONT_WEIGHT);
+      cell.setVerticalAlignment(DAY_HEADER_VERTICAL_ALIGNMENT);
+      cell.setHorizontalAlignment(DAY_HEADER_HORIZONTAL_ALIGNMENT);
+      cell.setWrap(DAY_HEADER_WRAP);
+      cell.setBorder(true, true, true, true, false, false, BORDER_COLOR, BORDER_STYLE);
 
       if (config.historicalShading) {
         if (Utilities.formatDate(currentDate, TIMEZONE, 'yyyy-MM-dd') < Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd')) {
-          cell.setFontColor('#b7b7b7')
+          cell.setFontColor(HISTORICAL_SHADING_FONT_COLOR)
         }
       }
 
@@ -546,10 +607,11 @@ function generateCalendar() {
       
       // Weekend styling
       if (day >= 5) {
-        cell.setBackground('#f3f3f3');
-        cell.setFontSize(8);
+        cell.setBackground(WEEKEND_HEADER_BACKGROUND_COLOR);
+        cell.setFontSize(WEEKEND_FONT_SIZE);
       } else {
-        cell.setBackground('#ffffff');
+        cell.setBackground(WEEKDAY_HEADER_BACKGROUND_COLOR);
+        cell.setFontSize(WEEKDAY_FONT_SIZE)
       }
       
       // Store date in hidden note for event population
@@ -573,17 +635,17 @@ function generateCalendar() {
         let range3 = eventRowsThisWeek +1
         let range4 = 1;
         let borderRange = calSheet.getRange(range1, range2, range3, range4);
-        borderRange.setBorder(true, true, true, true, false, false, 'grey', SpreadsheetApp.BorderStyle.SOLID);
-        borderRange.setVerticalAlignment('top');
-        borderRange.setWrap(true);
+        borderRange.setBorder(true, true, true, true, false, false, BORDER_COLOR, BORDER_STYLE);
+        borderRange.setVerticalAlignment(DEFAULT_EVENT_VERTICAL_ALIGNMENT);
+        borderRange.setWrap(DEFAULT_EVENT_WRAP);
       
         // Initial event cell styling (can be overwritten by event updates)
         if (day >= 5) {
           // Weekend Events
-          borderRange.setBackground('#d9d9d9');
+          borderRange.setBackground(WEEKEND_EVENTS_BACKGROUND_COLOR);
         } else {
           // Weekday events
-          borderRange.setBackground('#ffffff');
+          borderRange.setBackground(WEEKDAY_EVENTS_BACKGROUND_COLOR);
         }
     }
 
@@ -619,12 +681,12 @@ function generateCalendar() {
       const col = position.col;
     
       // Set event font color to black by default and override if the date is prior to todays date
-      let eventFontColor = '#000000' 
+      let eventFontColor = DEFAULT_EVENT_FONT_COLOR
       if (config.historicalShading) {
         const dateIter = Utilities.formatDate(new Date(dateStr), TIMEZONE, 'yyyy-MM-dd');
         const dateNow = Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd')
         if (Utilities.formatDate(new Date(dateStr), TIMEZONE, 'yyyy-MM-dd') < Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd')) {
-          eventFontColor = ('#b7b7b7');
+          eventFontColor = (HISTORICAL_SHADING_FONT_COLOR);
         }
       }
 
@@ -632,8 +694,8 @@ function generateCalendar() {
         range: calSheet.getRange(row, col),
         value: eventText,
         fontColor: eventFontColor,
-        background: col >= 6 ? '#d9d9d9' : '#ffffff',
-        fontSize: col >= 6 ? 8 : 9,
+        background: col >= 6 ? WEEKEND_EVENTS_BACKGROUND_COLOR : WEEKDAY_EVENTS_BACKGROUND_COLOR,
+        fontSize: col >= 6 ? WEEKEND_FONT_SIZE : WEEKDAY_FONT_SIZE,
       });
     });
   }
@@ -650,10 +712,10 @@ function generateCalendar() {
   for (let col = 1; col <= 7; col++) {
     if (col >= 6) {
       // Weekend Events
-      calSheet.setColumnWidth(col, 100);
+      calSheet.setColumnWidth(col, WEEKEND_COLUMN_WIDTH);
     } else {
       // Weekday events
-      calSheet.setColumnWidth(col, 160);
+      calSheet.setColumnWidth(col, WEEKDAY_COLUMN_WIDTH);
     }
   }
 
