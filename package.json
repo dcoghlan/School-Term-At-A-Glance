@@ -1,0 +1,13 @@
+{
+    "name": "sheet-deployer",
+    "version": "1.0.0",
+    "description": "Deploys Apps Script to a new Sheet and sets public permissions",
+    "scripts": {
+      "deploy": "node scripts/deploy_sheet.js"
+    },
+    "dependencies": {
+      "@google/clasp": "^2.4.2",
+      "googleapis": "^126.0.1",
+      "shelljs": "^0.8.5"
+    }
+  }
