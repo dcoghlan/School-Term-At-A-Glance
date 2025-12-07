@@ -44,6 +44,9 @@ const CALENDAR_SHEET = 'Term Calendar';
 // Define the suffix to use to temporarily rename the existing sheet upon sheet regeneration
 const CALENDAR_SHEET_BACKUP_SUFFIX = '.bak'
 
+// Default sheet name that will be deleted if it exists
+const DEFAULT_SHEET_NAME = 'Sheet1';
+
 // Define the text to be added to a multiple day event title to indicate that the event spans multiple days
 const MULTIPLE_DAY_EVENT_TEXT = '(cont.)';
 
@@ -617,9 +620,16 @@ function generateCalendar() {
   calSheet.setHiddenGridlines(true);
   calSheet.activate();
   
+  // Delete the backup sheet if it exists
   calSheetBackup = ss.getSheetByName(calSheetBackupName);
   if (calSheetBackup) {
     ss.deleteSheet(calSheetBackup);
+  }
+
+  // Delete the default sheet if it exists
+  defaultSheet = ss.getSheetByName(DEFAULT_SHEET_NAME);
+  if (defaultSheet) {
+    ss.deleteSheet(defaultSheet);
   }
 
   // --- 3. Drawing the Calendar Structure ---
