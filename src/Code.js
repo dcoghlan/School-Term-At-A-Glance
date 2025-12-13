@@ -33,7 +33,7 @@
 // 9. Use "Term Calendar > Generate Calendar" to create the complete calendar.
 
 // Version number
-const VERSION = '0.0.33';
+const VERSION = '0.0.34';
 
 // Defines the name of the sheet that config options are saved to/read from
 const CONFIG_SHEET = 'Config';
@@ -89,9 +89,7 @@ const BORDER_STYLE = SpreadsheetApp.BorderStyle.SOLID;
 const BORDER_COLOR = 'grey';
 
 // Formatting options for the week headers
-const WEEK_HEADER_FONT_COLOR = '#ffffff';
 const WEEK_HEADER_FONT_WEIGHT = 'bold';
-const WEEK_HEADER_BACKGROUND_COLOR = '#4285f4';
 const WEEK_HEADER_HORIZONTAL_ALIGNMENT = 'center';
 
 // Defines the text to display before the week headers
@@ -278,7 +276,8 @@ function saveConfig(config) {
       stalePeriod: config.stalePeriod || '',
       ignoreNames: config.ignoreNames ? config.ignoreNames.join(',') : '',
       displayEndTimes: String(config.displayEndTimes || 'false'),
-      hideHistoricalWeeks: String(config.hideHistoricalWeeks || 'false')
+      hideHistoricalWeeks: String(config.hideHistoricalWeeks || 'false'),
+      weekHeaderColor: config.weekHeaderColor || '#4285f4'
     };
 
     props.setProperties(payload);
@@ -332,7 +331,8 @@ function getConfig() {
     ignoreNames: ignoreNamesList,
     displayEndTimes: displayEndTimesBool,
     hideHistoricalWeeks: hideHistoricalWeeksBool,
-    mondayStartDate: mondayStart
+    mondayStartDate: mondayStart,
+    weekHeaderColor: data.weekHeaderColor || '#4285f4' // Defaults to Google Blue if not set
   };
 
   Logger.log("getConfig(): config data: " + JSON.stringify(configObject));
@@ -443,6 +443,31 @@ function getMondayOfWeek_(dateString) {
 
   // 4. Format and return the string using the Script's timezone
   return Utilities.formatDate(date, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+
+/**
+ * Determines whether text should be black or white based on background hex color.
+ * Uses the YIQ formula for contrast.
+ * @param {string} hexcolor - The background color in hex format (e.g. #ffffff).
+ * @return {string} - Returns '#000000' (black) or '#ffffff' (white).
+ */
+function getContrastColor_(hexcolor) {
+  // If no color provided, default to white text
+  if (!hexcolor) return '#ffffff';
+
+  // Remove the hash at the start if it's there
+  hexcolor = hexcolor.replace("#", "");
+
+  // Parse r, g, b values
+  var r = parseInt(hexcolor.substr(0, 2), 16);
+  var g = parseInt(hexcolor.substr(2, 2), 16);
+  var b = parseInt(hexcolor.substr(4, 2), 16);
+
+  // Calculate YIQ ratio
+  var yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+
+  // Check contrast (128 is the middle ground)
+  return (yiq >= 128) ? '#000000' : '#ffffff';
 }
 
 // Generate the calendar
@@ -663,12 +688,16 @@ function generateCalendar() {
   for (let week = 0; week < weekCount; week++) {
     const eventRowsThisWeek = eventsByWeek[week]; // Use the dynamically calculated required rows
     
+    // Calculate dynamic font color based on config background
+    const bg = config.weekHeaderColor;
+    const fontColor = getContrastColor_(bg);
+
     // Week header
     calSheet.getRange(currentRow, 1, 1, 7)
       .merge()
       .setValue(`${WEEK_HEADER_TEXT} ${week + 1}`)
-      .setBackground(WEEK_HEADER_BACKGROUND_COLOR)
-      .setFontColor(WEEK_HEADER_FONT_COLOR)
+      .setBackground(bg)        // Use Config Color
+      .setFontColor(fontColor)  // Use Calculated Contrast Color
       .setFontWeight(WEEK_HEADER_FONT_WEIGHT)
       .setHorizontalAlignment(WEEK_HEADER_HORIZONTAL_ALIGNMENT);
     

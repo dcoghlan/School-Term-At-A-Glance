@@ -74,6 +74,19 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
         border-top: 1px solid #eee; /* Separator line */
         padding-top: 20px; /* Increased padding to separate from the line */
       }
+
+      .reset-link {
+        font-size: 11px;
+        color: #4285f4;
+        text-decoration: underline;
+        cursor: pointer;
+        margin-left: 10px;
+        user-select: none;
+      }
+      
+      .reset-link:hover {
+        color: #3367d6; /* Darker blue on hover */
+      }
     </style>
     
     <!-- MAIN CONFIGURATION -->
@@ -142,6 +155,17 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
           <div class="help">Collapse/hide historical weeks by default</div>
         </div>
 
+        <div class="form-group">
+          <label>Week Header Color:</label>
+        </div>
+        <div class="checkbox-container">
+          <input type="color" id="weekHeaderColor" value="#4285f4"
+            style="height:40px; width:60px; padding:0; border:none; cursor:pointer;">
+        
+          <span class="reset-link" onclick="resetColor()">Reset to default</span>
+        </div>
+        <div class="help" style="margin-bottom: 15px;">Select background color for week headers</div>
+
         <!-- Display End Times -->
         <div class="form-group">
           <label>Display event end times:</label>
@@ -192,6 +216,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
           if (config.stalePeriod) document.getElementById('stalePeriod').value = config.stalePeriod;
           if (config.hideHistoricalWeeks) document.getElementById('hideHistoricalWeeks').checked = config.hideHistoricalWeeks;
           if (config.displayEndTimes) document.getElementById('displayEndTimes').checked = config.displayEndTimes;
+
+          if (config.weekHeaderColor) {
+            document.getElementById('weekHeaderColor').value = config.weekHeaderColor;
+          }
+
           // ignoreNames comes as an array from the server, we join it for the text box
           if (config.ignoreNames && Array.isArray(config.ignoreNames)) {
             document.getElementById('ignoreNames').value = config.ignoreNames.join(', ');
@@ -214,6 +243,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
             }
           }
         }).getConfig();
+      }
+
+      function resetColor() {
+        // Sets the color picker back to the default Google Blue
+        const defaultColor = '#4285f4';
+        document.getElementById('weekHeaderColor').value = defaultColor;
       }
 
       // Start the loading process
@@ -242,6 +277,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
           stalePeriod: document.getElementById('stalePeriod').value,
           hideHistoricalWeeks: document.getElementById('hideHistoricalWeeks').checked,
           displayEndTimes: document.getElementById('displayEndTimes').checked,
+          weekHeaderColor: document.getElementById('weekHeaderColor').value,
           ignoreNames: ignoreNamesArray
         };
         console.log('CLIENT: Submitting config: ', config);
