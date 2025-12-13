@@ -22,6 +22,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
     <base target="_top">
   </head>
   <body>
+    <div id="loadingOverlay">
+      <div class="spinner"></div>
+      <div>Loading configuration...</div>
+    </div>
     <style>
       body { font-family: Arial, sans-serif; padding: 20px; }
       .form-group { margin-bottom: 15px; }
@@ -86,6 +90,38 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
       
       .reset-link:hover {
         color: #3367d6; /* Darker blue on hover */
+      }
+
+      /* Loading Overlay Styles */
+      #loadingOverlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #ffffff;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        color: #666;
+        font-size: 14px;
+      }
+
+      .spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #4285f4; /* Google Blue */
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        animation: spin 1s linear infinite;
+        margin-bottom: 10px;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
       }
     </style>
     
@@ -242,6 +278,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
                 select.value = config.calendarId;
             }
           }
+
+          // Once everything is set, hide the loading overlay
+          document.getElementById('loadingOverlay').style.display = 'none';
         }).getConfig();
       }
 
