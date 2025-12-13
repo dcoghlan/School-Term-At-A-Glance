@@ -240,7 +240,13 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
 
           // Now that options are loaded, fetch the saved config
           fetchConfig();
-
+        }).withFailureHandler(function(error) {
+          // Hide the loading overlay
+          document.getElementById('loadingOverlay').style.display = 'none';
+          
+          // Display error message
+          alert('Error loading calendars: ' + error.message);
+          console.error('Failed to load calendars:', error);
         }).getUserCalendars();
       }
 
@@ -284,7 +290,16 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
 
           // Once everything is set, hide the loading overlay
           document.getElementById('loadingOverlay').style.display = 'none';
-        }).getConfig();
+        })
+        .withFailureHandler(function(error) {
+          // Hide the loading overlay
+          document.getElementById('loadingOverlay').style.display = 'none';
+          
+          // Display error message
+          alert('Error loading configuration: ' + error.message);
+          console.error('Failed to load config:', error);
+        })
+        .getConfig();
       }
 
       function resetColor() {
