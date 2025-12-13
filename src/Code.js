@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-// School Term Calendar Generator for Google Sheets
+// School Term At A Glance Generator for Google Sheets
+// https://github.com/dcoghlan/School-Term-At-A-Glance
  
 // SETUP INSTRUCTIONS:
 // 1. Create a new Google Sheet
