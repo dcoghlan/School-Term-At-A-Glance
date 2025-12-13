@@ -1,15 +1,17 @@
 # 🗓️ School-Term-At-A-Glance
 
-**Latest Release:** v0.0.33
+**Latest Release:** v0.0.34
 
-Welcome! This guide will help you set up the School Term At A Glance tool. You do not need to be a programmer to set this up. There are 2 methods to choose from to get this working, just pick which ever you are more comfortable with and follow the instructions.
+Welcome! **School-Term-At-A-Glance** is a custom Google Apps Script that generates a read-only *"Term At A Glance"* calendar style view in Google Sheets. The events used to populate the calendar are pulled from an existing Google Calendar.
+
+This guide will help you set up **School-Term-At-A-Glance**. You do not need to be a programmer to set this up. There are 2 methods to choose from to get this working, just pick which ever you are more comfortable with and follow the instructions.
 
 - [Easy Installation Guide](README.md#easy-installation-guide)
 - [Manual Installation Guide](README.md#manual-installation-guide)
 
 ## Easy Installation Guide
 
-- Click the following link to "Make a copy" of a pre-configured Google Sheet with the code already installed
+- Click the following link to *"Make a copy"* of a pre-configured Google Sheet with the code already installed
   - [Latest Release Template](https://docs.google.com/spreadsheets/d/19CMaI6o0mta8F4JC2jsLASh0S_7INRx7F4tzjqjWvzA/copy)
 - A Copy document screen will be shown with the message "*The attached Apps Script file and functionality will also be copied. Would you like to make a scopy of School-Term-At-A-Glance vx.x.x?*"
 - Click "**Make a copy**"
@@ -100,9 +102,9 @@ There are several items that are required to be configured so as to generate a T
 | Config Item | Description |
 | :--- | :--- |
 | **Term Name** | This is the heading text that gets displayed at the top of the generated calendar. |
-| **Start Date** | Select the start date for week 1 of the generated calendar. *The start date should always be the Monday of the week. If you choose any other day, the weeks will be out of whack. This will be address in a future update* |
-| **Number of Weeks** | Select the number of weeks for the school term. Current options available are 9,10 & 11. |
-| **Google Calendar ID** | This is the identifier of the Google Calendar to pull the events from. To find your Calendar ID: Open Google Calendar → Settings → Select your calendar → Scroll to "Integrate calendar" → Copy the Calendar ID |
+| **Start Date** | Select the start date for week 1 of the generated calendar. |
+| **Number of Weeks** | Select the number of weeks for the school term. |
+| **Select Google Calendar** | Select the Google Calendar that the events will be read from. |
 
 - Click *Save Configuration*
 
@@ -139,6 +141,7 @@ To regenerate the calendar on a schedule, a trigger needs to be configured:
 - Click **Save**
 
 ## Troubleshooting
+
 If the calendar is empty or looks wrong, check the **Config** sheet
 
 ## FAQ
@@ -146,8 +149,11 @@ If the calendar is empty or looks wrong, check the **Config** sheet
 Q: Finding my Google Calendar ID is difficult, is there an easier way?  
 A: The latest versions (>= 0.0.33) will auto-populate the list of calendars that are available to you to select from.
 
-Q: Can I change the colors, fonts, borders etc??  
-A: Yes it is possible to modify the formatting by editing the script manually if you dare to do so. This ability will be added to the configuration UI in a future release
+Q: Can I change the colors of the week headers?  
+A: The latest versions (>= 0.0.34) has an advanced config setting to select the background color of the week headers.
+
+Q: Can I change the fonts and borders etc??  
+A: Font and borders can currently only be modified by editing the script manually if you dare to do so. This ability may be added to the configuration UI in a future release.
 
 Q: How do I know which version of the script my calendar is using?  
 A: The version number is listed at the bottom of the calendar.
@@ -156,12 +162,12 @@ Q: I need to select a number of weeks which is not available in the configuratio
 A: The latest version (>= 0.0.33) allows you to enter values between 1 and 52 for the number of weeks. This was limited to 52 weeks due to performance issues, however if for some reason you need a higher number, you can modify it directly in the HTML code as that is where the validation is done.
 
 Q: What will happen if I make changes to the generated calendar?  
-A: Due to the fact we completely delete the sheet and create a new sheet and calendar, the changes will be lost. The script only pulls events from the Google Calendar as the source of truth. If you want to keep a copy of the modified calendar, you can rename the sheet (tab) to something else, and when the calendar is regenreted, the old renamed one will not be deleted.
+A: Due to the fact we completely delete the sheet and create a new sheet and calendar, the changes will be lost. The script only pulls events from the Google Calendar as the source of truth. If you want to keep a copy of the modified calendar, you can rename the sheet (tab) to something else, and when the calendar is regenerated, the old renamed one will not be deleted.
 
 Q: Are there plans to have updates without having to regenerate the whole calendar?  
 A: No  
 
-Q: Are there plans to add the ability to add/update events on the Google Calendar from this script?
+Q: Are there plans to add the ability to add/update events on the Google Calendar from this script?  
 A: No, this was designed as an alternate read-only view of an existing Google Calendar calendar. There are no plans to change this.
 
 Q: I have multiple calendars that I would like to use this for. Can I do this in one file?  
