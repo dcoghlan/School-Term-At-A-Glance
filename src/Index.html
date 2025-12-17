@@ -30,7 +30,61 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
       <div>Loading configuration...</div>
     </div>
     <style>
-      body { font-family: Arial, sans-serif; padding: 20px; }
+      body { 
+        font-family: Arial, sans-serif; 
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      
+      .content-wrapper {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        padding-bottom: 20px;
+        position: relative;
+      }
+      
+      .sticky-footer {
+        position: sticky;
+        bottom: 0;
+        background: white;
+        border-top: 2px solid #e0e0e0;
+        padding: 15px 20px;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        z-index: 100;
+      }
+      
+      .scroll-indicator {
+        position: fixed;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(66, 133, 244, 0.9);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 12px;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        z-index: 99;
+      }
+      
+      .scroll-indicator.visible {
+        opacity: 1;
+      }
+      
+      .scroll-indicator.top {
+        top: 10px;
+      }
+      
+      .scroll-indicator.bottom {
+        bottom: 80px;
+      }
+      
       .form-group { margin-bottom: 15px; }
       label { display: block; margin-bottom: 5px; font-weight: bold; }
       input, select { width: 100%; padding: 8px; box-sizing: border-box; }
@@ -158,7 +212,7 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 15px;
+        margin-bottom: 0; /* Remove margin since summary handles spacing */
         padding-bottom: 10px;
         border-bottom: 1px solid #ddd;
       }
@@ -169,6 +223,57 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
         color: #333;
         display: flex;
         align-items: center;
+      }
+      
+      /* Styles for collapsible calendar blocks */
+      .calendar-block details {
+        border: none; /* Remove border from details inside calendar-block */
+        padding: 0;
+        margin: 0;
+        background-color: transparent;
+      }
+      
+      .calendar-block summary {
+        cursor: pointer;
+        font-weight: normal; /* Keep normal weight since calendar-title is bold */
+        color: inherit;
+        outline: none;
+        margin-bottom: 15px;
+        list-style: none; /* Remove default arrow */
+      }
+      
+      .calendar-block summary::-webkit-details-marker {
+        display: none; /* Remove default arrow in WebKit browsers */
+      }
+      
+      .calendar-block summary:hover {
+        color: inherit;
+      }
+      
+      .calendar-block details > div {
+        margin-top: 0;
+        padding-left: 0;
+        border-top: none;
+        padding-top: 0;
+      }
+      
+      .calendar-term-name {
+        color: #666;
+        font-weight: normal;
+        font-size: 0.9em;
+        margin-left: 5px;
+      }
+      
+      .collapse-indicator {
+        margin-left: 8px;
+        font-size: 12px;
+        color: #666;
+        transition: transform 0.2s ease;
+        display: inline-block;
+      }
+      
+      details[open] .collapse-indicator {
+        transform: rotate(180deg);
       }
 
       .drag-handle {
@@ -247,8 +352,14 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
       }
     </style>
     
-    <!-- GLOBAL CONFIGURATION -->
-    <h3 style="margin-top: 0;">Global Settings</h3>
+    <!-- Scroll Indicators -->
+    <div id="scrollIndicatorTop" class="scroll-indicator top">▲ Scroll up for more</div>
+    <div id="scrollIndicatorBottom" class="scroll-indicator bottom">▼ Scroll down for more</div>
+    
+    <!-- Content Wrapper -->
+    <div class="content-wrapper" id="contentWrapper">
+      <!-- GLOBAL CONFIGURATION -->
+      <h3 style="margin-top: 0;">Global Settings</h3>
     
     <div class="form-group">
       <label>Select Google Calendar:</label>
@@ -325,8 +436,12 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
         </div>
       </div>
     </details>
-
-    <button onclick="saveConfig()">Save Configuration</button>
+    </div>
+    
+    <!-- Sticky Footer with Save Button -->
+    <div class="sticky-footer">
+      <button onclick="saveConfig()" style="width: 100%; margin: 0;">Save Configuration</button>
+    </div>
     
     <script>
       const MAX_CALENDARS = 9;
@@ -410,6 +525,9 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
 
           // Once everything is set, hide the loading overlay
           document.getElementById('loadingOverlay').style.display = 'none';
+          
+          // Update scroll indicators after content is loaded
+          setTimeout(updateScrollIndicators, 200);
         })
         .withFailureHandler(function(error) {
           // Hide the loading overlay
@@ -437,54 +555,78 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
         const calendarBlock = document.createElement('div');
         calendarBlock.className = 'calendar-block';
         calendarBlock.id = calendarId;
-        calendarBlock.draggable = true;
 
         // Add drag event listeners
-        calendarBlock.addEventListener('dragstart', handleDragStart);
         calendarBlock.addEventListener('dragover', handleDragOver);
         calendarBlock.addEventListener('drop', handleDrop);
-        calendarBlock.addEventListener('dragend', handleDragEnd);
         calendarBlock.addEventListener('dragenter', handleDragEnter);
         calendarBlock.addEventListener('dragleave', handleDragLeave);
 
         calendarBlock.innerHTML = `
-          <div class="calendar-header">
-            <div class="calendar-title">
-              <span class="drag-handle">☰</span>
-              <span>Calendar ${calendarCount + 1}</span>
-            </div>
-            <button class="delete-calendar-btn" onclick="deleteCalendar('${calendarId}')">Delete</button>
-          </div>
-          <div class="calendar-inputs">
-            <div class="form-group">
-              <label>Term Name:</label>
-              <input type="text" class="termName" placeholder="e.g., Term 1 2025" value="${calendarData ? calendarData.termName || '' : ''}">
-              <div class="help">Sheet name and title for this calendar.</div>
-            </div>
-            
-            <div class="form-group">
-              <label>Start Date:</label>
-              <input type="date" class="startDate" value="${calendarData ? calendarData.startDate || '' : ''}">
-            </div>
-
-            <div class="form-group">
-              <label>Number of Weeks:</label>
-              <input type="number" class="weekCount" min="1" max="52" step="1" value="${calendarData ? calendarData.weekCount || 10 : 10}">
-              <div class="help">Enter a duration between 1 and 52 weeks.</div>
-            </div>
-
-            <div class="form-group">
-              <label>Week Header Color:</label>
-              <div class="color-input-container">
-                <input type="color" class="weekHeaderColor" value="${calendarData ? calendarData.weekHeaderColor || '#4285f4' : '#4285f4'}">
-                <span class="reset-link" onclick="resetCalendarColor('${calendarId}')">Reset to default</span>
+          <details>
+            <summary>
+              <div class="calendar-header">
+                <div class="calendar-title" draggable="true">
+                  <span class="drag-handle">☰</span>
+                  <span class="calendar-number">Calendar ${calendarCount + 1}</span>
+                  <span class="calendar-term-name">${calendarData && calendarData.termName ? '(' + calendarData.termName + ')' : ''}</span>
+                  <span class="collapse-indicator">▼</span>
+                </div>
+                <button class="delete-calendar-btn" onclick="deleteCalendar('${calendarId}'); event.stopPropagation();">Delete</button>
               </div>
-              <div class="help">Background color for week headers.</div>
+            </summary>
+            <div class="calendar-inputs">
+              <div class="form-group">
+                <label>Calendar Name:</label>
+                <input type="text" class="termName" placeholder="e.g., Term 1 2025" value="${calendarData ? calendarData.termName || '' : ''}" onchange="updateCalendarTermName('${calendarId}')">
+                <div class="help">Sheet name and title for this calendar.</div>
+              </div>
+              
+              <div class="form-group">
+                <label>Start Date:</label>
+                <input type="date" class="startDate" value="${calendarData ? calendarData.startDate || '' : ''}">
+              </div>
+
+              <div class="form-group">
+                <label>Number of Weeks:</label>
+                <input type="number" class="weekCount" min="1" max="52" step="1" value="${calendarData ? calendarData.weekCount || 10 : 10}">
+                <div class="help">Enter a duration between 1 and 52 weeks.</div>
+              </div>
+
+              <div class="form-group">
+                <label>Week Header Color:</label>
+                <div class="color-input-container">
+                  <input type="color" class="weekHeaderColor" value="${calendarData ? calendarData.weekHeaderColor || '#4285f4' : '#4285f4'}">
+                  <span class="reset-link" onclick="resetCalendarColor('${calendarId}')">Reset to default</span>
+                </div>
+                <div class="help">Background color for week headers.</div>
+              </div>
             </div>
-          </div>
+          </details>
         `;
 
         container.appendChild(calendarBlock);
+        
+        // Attach drag event listeners to the calendar title (which includes the drag handle)
+        const calendarTitle = calendarBlock.querySelector('.calendar-title');
+        calendarTitle.addEventListener('dragstart', handleDragStart);
+        calendarTitle.addEventListener('dragend', handleDragEnd);
+        
+        // Prevent the summary from toggling when dragging
+        calendarTitle.addEventListener('mousedown', function(e) {
+          // Mark that we're potentially starting a drag
+          calendarTitle.dataset.isDragging = 'true';
+        });
+        
+        calendarTitle.addEventListener('click', function(e) {
+          // If we were dragging, prevent the toggle
+          if (calendarTitle.dataset.isDragging === 'true') {
+            e.stopPropagation();
+            e.preventDefault();
+          }
+          delete calendarTitle.dataset.isDragging;
+        });
+        
         updateCalendarControls();
       }
 
@@ -524,6 +666,9 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
         deleteButtons.forEach(btn => {
           btn.disabled = (calendarCount <= MIN_CALENDARS);
         });
+        
+        // Update scroll indicators after content changes
+        setTimeout(updateScrollIndicators, 100);
       }
 
       function updateCalendarNumbers() {
@@ -531,17 +676,43 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
         const calendarBlocks = container.children;
         
         for (let i = 0; i < calendarBlocks.length; i++) {
-          const titleSpan = calendarBlocks[i].querySelector('.calendar-title span:last-child');
-          titleSpan.textContent = 'Calendar ' + (i + 1);
+          const numberSpan = calendarBlocks[i].querySelector('.calendar-number');
+          const termNameSpan = calendarBlocks[i].querySelector('.calendar-term-name');
+          const termNameInput = calendarBlocks[i].querySelector('.termName');
+          
+          numberSpan.textContent = 'Calendar ' + (i + 1);
+          
+          // Update term name display
+          if (termNameInput && termNameInput.value) {
+            termNameSpan.textContent = '(' + termNameInput.value + ')';
+          } else {
+            termNameSpan.textContent = '';
+          }
+        }
+      }
+      
+      function updateCalendarTermName(calendarId) {
+        const calendarBlock = document.getElementById(calendarId);
+        const termNameInput = calendarBlock.querySelector('.termName');
+        const termNameSpan = calendarBlock.querySelector('.calendar-term-name');
+        
+        if (termNameInput.value) {
+          termNameSpan.textContent = '(' + termNameInput.value + ')';
+        } else {
+          termNameSpan.textContent = '';
         }
       }
 
       // Drag and Drop handlers
       function handleDragStart(e) {
-        draggedElement = this;
-        this.classList.add('dragging');
+        // 'this' is the calendar-title, but we want to drag the calendar-block
+        draggedElement = this.closest('.calendar-block');
+        draggedElement.classList.add('dragging');
         e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/html', this.innerHTML);
+        e.dataTransfer.setData('text/html', draggedElement.innerHTML);
+        
+        // Prevent the summary from toggling
+        e.stopPropagation();
       }
 
       function handleDragOver(e) {
@@ -553,40 +724,61 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
       }
 
       function handleDragEnter(e) {
-        if (this !== draggedElement) {
+        e.preventDefault();
+        // 'this' is the calendar-block
+        if (this !== draggedElement && this.classList.contains('calendar-block')) {
           this.classList.add('drag-over');
         }
       }
 
       function handleDragLeave(e) {
-        this.classList.remove('drag-over');
+        // Only remove if we're actually leaving the calendar-block, not just entering a child
+        if (e.target === this) {
+          this.classList.remove('drag-over');
+        }
       }
 
       function handleDrop(e) {
+        if (e.preventDefault) {
+          e.preventDefault();
+        }
         if (e.stopPropagation) {
           e.stopPropagation();
         }
 
-        if (draggedElement !== this) {
+        // Remove all drag-over classes
+        const allBlocks = document.querySelectorAll('.calendar-block');
+        allBlocks.forEach(block => {
+          block.classList.remove('drag-over');
+        });
+
+        // 'this' is the calendar-block being dropped onto
+        if (draggedElement && draggedElement !== this) {
           const container = document.getElementById('calendarsContainer');
-          const allBlocks = Array.from(container.children);
-          const draggedIndex = allBlocks.indexOf(draggedElement);
-          const targetIndex = allBlocks.indexOf(this);
+          const allBlocksArray = Array.from(container.children);
+          const draggedIndex = allBlocksArray.indexOf(draggedElement);
+          const targetIndex = allBlocksArray.indexOf(this);
 
-          if (draggedIndex < targetIndex) {
-            this.parentNode.insertBefore(draggedElement, this.nextSibling);
-          } else {
-            this.parentNode.insertBefore(draggedElement, this);
+          if (draggedIndex !== -1 && targetIndex !== -1) {
+            if (draggedIndex < targetIndex) {
+              container.insertBefore(draggedElement, this.nextSibling);
+            } else {
+              container.insertBefore(draggedElement, this);
+            }
+
+            updateCalendarNumbers();
           }
-
-          updateCalendarNumbers();
         }
 
         return false;
       }
 
       function handleDragEnd(e) {
-        this.classList.remove('dragging');
+        // 'this' is the calendar-title
+        const calendarBlock = this.closest('.calendar-block');
+        if (calendarBlock) {
+          calendarBlock.classList.remove('dragging');
+        }
         
         const allBlocks = document.querySelectorAll('.calendar-block');
         allBlocks.forEach(block => {
@@ -594,6 +786,38 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
         });
       }
 
+      // Scroll indicator management
+      function updateScrollIndicators() {
+        const wrapper = document.getElementById('contentWrapper');
+        const topIndicator = document.getElementById('scrollIndicatorTop');
+        const bottomIndicator = document.getElementById('scrollIndicatorBottom');
+        
+        const scrollTop = wrapper.scrollTop;
+        const scrollHeight = wrapper.scrollHeight;
+        const clientHeight = wrapper.clientHeight;
+        const scrollBottom = scrollHeight - scrollTop - clientHeight;
+        
+        // Show top indicator if scrolled down more than 50px
+        if (scrollTop > 50) {
+          topIndicator.classList.add('visible');
+        } else {
+          topIndicator.classList.remove('visible');
+        }
+        
+        // Show bottom indicator if there's more than 50px to scroll
+        if (scrollBottom > 50) {
+          bottomIndicator.classList.add('visible');
+        } else {
+          bottomIndicator.classList.remove('visible');
+        }
+      }
+      
+      // Attach scroll listener
+      document.getElementById('contentWrapper').addEventListener('scroll', updateScrollIndicators);
+      
+      // Initial check after a short delay to allow content to render
+      setTimeout(updateScrollIndicators, 100);
+      
       // Start the loading process
       loadForm();
       
