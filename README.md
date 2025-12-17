@@ -106,13 +106,7 @@ There are several items that are required to be configured so as to generate a T
 | **Number of Weeks** | Select the number of weeks for the school term. |
 | **Select Google Calendar** | Select the Google Calendar that the events will be read from. |
 
-- Click *Save Configuration*
-
-### Step 3: Generate the calendar
-
-- In your Google Sheet, look at the top menu bar.
-- Click `Term Calendar` > `Generate Calendar (Recreates Sheet)`.
-- A new sheet will be created which will be populated with events from the calendar specified in the configuration.
+- Click *Save Configuration* and wait while the calendar is generated.
 
 ## Updating/Regenerating the calendar
 
@@ -125,6 +119,14 @@ Based on this there are 2 options when it comes to re-generating the calendar: M
 - In your Google Sheet, look at the top menu bar.
 - Click `Term Calendar` > `Generate Calendar (Recreates Sheet)`.
 - The existing sheet containing the calendar will be renamed (because we cannot zero sheets), the new one created and then the old renamed version will be deleted.
+
+### Update Configuration Settings
+
+- In your Google Sheet, look at the top menu bar.
+- Click `Term Calendar` > `Setup Configuration`.
+- A popup window called "**Configure Term Calendar**" will be displayed.
+- Modify the configuration settings as required
+- Click *Save Configuration* and wait while the calendar is generated.
 
 ### Regenerate Calendar (Scheduled)
 
