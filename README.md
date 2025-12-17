@@ -1,6 +1,6 @@
 # 🗓️ School-Term-At-A-Glance
 
-**Latest Release:** v0.0.34
+**Latest Release:** v0.1.0
 
 Welcome! **School-Term-At-A-Glance** is a custom Google Apps Script that generates a read-only *"Term At A Glance"* calendar style view in Google Sheets. The events used to populate the calendar are pulled from an existing Google Calendar.
 
@@ -89,24 +89,40 @@ The script should now run and you will be presented with the **Configure Term Ca
 
 ## Configuration Guide
 
-There are several items that are required to be configured so as to generate a Term Calendar. 
+There are several items that are required to be configured so as to generate Term Calendars.
 
-### Step 1: Open the configuration window:
+### Step 1: Open the configuration window
 
 - In your Google Sheet, look at the top menu bar.
 - Click `Term Calendar` > `Setup Configuration`.
 - A popup window called "**Configure Term Calendar**" will be displayed.
 
-### Step 2: Enter the minimum required details
+### Step 2: Configure Global Settings
 
 | Config Item | Description |
 | :--- | :--- |
-| **Term Name** | The text enetered will be used to name the sheet and also displayed as the title. |
-| **Start Date** | Select the start date for week 1 of the generated calendar. |
-| **Number of Weeks** | Select the number of weeks for the school term. |
-| **Select Google Calendar** | Select the Google Calendar that the events will be read from. |
+| **Select Google Calendar** | Select the Google Calendar that the events will be read from (applies to all calendars). |
 
-- Click *Save Configuration* and wait while the calendar is generated.
+### Step 3: Configure Individual Calendars
+
+You can configure up to 9 calendars. Each calendar will create a separate sheet in your spreadsheet.
+
+| Config Item | Description |
+| :--- | :--- |
+| **Term Name** | The text entered will be used to name the sheet and also displayed as the title. |
+| **Start Date** | Select the start date for week 1 of the generated calendar. |
+| **Number of Weeks** | Select the number of weeks for the school term (1-52). |
+| **Week Header Color** | Choose the background color for week headers. |
+
+**Calendar Management:**
+
+- **Add Calendar:** Click the "+ Add Calendar" button to add a new calendar (up to 9 maximum).
+- **Delete Calendar:** Click the "Delete" button on any calendar to remove it (minimum 1 required).
+- **Reorder Calendars:** Drag and drop calendars using the ☰ handle to change their order. The order determines the sheet order in your spreadsheet.
+
+### Step 4: Save Configuration
+
+- Click *Save Configuration* and wait while the calendars are generated.
 
 ## Updating/Regenerating the calendar
 
@@ -152,7 +168,7 @@ Q: Finding my Google Calendar ID is difficult, is there an easier way?
 A: The latest versions (>= 0.0.33) will auto-populate the list of calendars that are available to you to select from.
 
 Q: Can I change the colors of the week headers?  
-A: The latest versions (>= 0.0.34) has an advanced config setting to select the background color of the week headers.
+A: Yes! Each calendar has its own week header color setting. You can customize the color individually for each calendar.
 
 Q: Can I change the fonts and borders etc??  
 A: Font and borders can currently only be modified by editing the script manually if you dare to do so. This ability may be added to the configuration UI in a future release.
@@ -172,5 +188,8 @@ A: No
 Q: Are there plans to add the ability to add/update events on the Google Calendar from this script?  
 A: No, this was designed as an alternate read-only view of an existing Google Calendar calendar. There are no plans to change this.
 
-Q: I have multiple calendars that I would like to use this for. Can I do this in one file?  
-A: No, a single Google Sheet is used for a single Google Calendar. Once you've got the script working in a Google Sheet, you can make a copy of the Google Sheet and the associated scripts will get copied to the new file and you can configure the new file to point to a different calendar. You will have to go through the Authorization process again though.
+Q: I have multiple school terms that I would like to use this for. Can I do this in one file?  
+A: Yes! As of v0.1.0, you can configure up to 9 calendars in a single spreadsheet. Each calendar creates its own sheet. All calendars pull events from the same Google Calendar but can have different term names, start dates, week counts, and header colors.
+
+Q: Can I pull events from different Google Calendars for each term?  
+A: No, all calendars in a spreadsheet pull from the same Google Calendar source. If you need to use different Google Calendars, you'll need to create separate spreadsheet files.

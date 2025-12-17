@@ -37,6 +37,7 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
       button { background: #4285f4; color: white; border: none; padding: 10px 20px; 
                cursor: pointer; border-radius: 4px; margin-top: 10px; }
       button:hover { background: #3367d6; }
+      button:disabled { background: #ccc; cursor: not-allowed; }
 
       /* New and modified CSS for inline checkbox */
       .help { 
@@ -126,37 +127,151 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
       }
+
+      /* Calendar Block Styles */
+      .calendars-container {
+        margin-bottom: 20px;
+      }
+
+      .calendar-block {
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        background-color: #fafafa;
+        position: relative;
+        cursor: move;
+      }
+
+      .calendar-block.dragging {
+        opacity: 0.5;
+        border-color: #4285f4;
+      }
+
+      .calendar-block.drag-over {
+        border-color: #4285f4;
+        border-style: dashed;
+        background-color: #e8f0fe;
+      }
+
+      .calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #ddd;
+      }
+
+      .calendar-title {
+        font-weight: bold;
+        font-size: 14px;
+        color: #333;
+        display: flex;
+        align-items: center;
+      }
+
+      .drag-handle {
+        cursor: move;
+        color: #999;
+        margin-right: 10px;
+        font-size: 18px;
+      }
+
+      .delete-calendar-btn {
+        background: #d93025;
+        color: white;
+        border: none;
+        padding: 5px 10px;
+        cursor: pointer;
+        border-radius: 4px;
+        font-size: 12px;
+      }
+
+      .delete-calendar-btn:hover:not(:disabled) {
+        background: #b71c1c;
+      }
+
+      .delete-calendar-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+
+      .add-calendar-container {
+        text-align: center;
+        margin-bottom: 20px;
+      }
+
+      .add-calendar-btn {
+        background: #34a853;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        cursor: pointer;
+        border-radius: 4px;
+        font-size: 14px;
+      }
+
+      .add-calendar-btn:hover:not(:disabled) {
+        background: #2d8e47;
+      }
+
+      .add-calendar-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+
+      .calendar-inputs {
+        display: grid;
+        gap: 10px;
+      }
+
+      .calendar-block input[type="text"],
+      .calendar-block input[type="date"],
+      .calendar-block input[type="number"] {
+        width: 100%;
+      }
+
+      .color-input-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .color-input-container input[type="color"] {
+        width: 60px;
+        height: 40px;
+        padding: 0;
+        border: none;
+        cursor: pointer;
+      }
     </style>
     
-    <!-- MAIN CONFIGURATION -->
-    <div class="form-group">
-      <label>Term Name:</label>
-      <input type="text" id="termName" placeholder="e.g., Term 1 2025"></input>
-      <div class="help">Text to display as the title of the term calendar sheet. The sheet will be named after this text.</div>
-    </div>
+    <!-- GLOBAL CONFIGURATION -->
+    <h3 style="margin-top: 0;">Global Settings</h3>
     
-    <div class="form-group">
-      <label>Start Date:</label>
-      <input type="date" id="startDate">
-    </div>
-
-    <div class="form-group">
-      <label>Number of Weeks:</label>
-      <!-- type="number" triggers numeric keypads on mobile -->
-      <!-- min/max sets the limits -->
-      <!-- step="1" helps enforce integers (prevents decimals) -->
-      <input type="number" id="weekCount" min="1" max="52" step="1" value="10">
-      <div class="help">Enter a duration between 1 and 52 weeks.</div>
-    </div>
-
     <div class="form-group">
       <label>Select Google Calendar:</label>
       <select id="calendarId">
         <option value="" disabled selected>Loading calendars...</option>
       </select>
       <div class="help">
-        Select the calendar where events will be created.
+        Select the calendar where events will be read from (applies to all calendars).
       </div>
+    </div>
+
+    <!-- CALENDARS SECTION -->
+    <h3>Calendars</h3>
+    <div class="help" style="margin-bottom: 15px;">
+      Configure up to 9 calendars. Drag to reorder. Each calendar creates a separate sheet.
+    </div>
+
+    <div id="calendarsContainer" class="calendars-container">
+      <!-- Calendar blocks will be inserted here dynamically -->
+    </div>
+
+    <div class="add-calendar-container">
+      <button id="addCalendarBtn" class="add-calendar-btn" onclick="addCalendar()">+ Add Calendar</button>
     </div>
 
     <!-- ADVANCED CONFIGURATION (Collapsible) -->
@@ -166,7 +281,7 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
         <div class="form-group">
           <label>New Event URL (Optional):</label>
           <input type="text" id="newEventUrl" placeholder="e.g. https://calendar.google.com/...">
-          <div class="help">Adds a clickable "Add New Event" link below the title.</div>
+          <div class="help">Adds a clickable "Add New Event" link below each calendar title.</div>
         </div>
         <!-- Stale Period -->
         <div class="form-group">
@@ -200,17 +315,6 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
           <div class="help">Collapse/hide historical weeks by default</div>
         </div>
 
-        <div class="form-group">
-          <label>Week Header Color:</label>
-        </div>
-        <div class="checkbox-container">
-          <input type="color" id="weekHeaderColor" value="#4285f4"
-            style="height:40px; width:60px; padding:0; border:none; cursor:pointer;">
-        
-          <span class="reset-link" onclick="resetColor()">Reset to default</span>
-        </div>
-        <div class="help" style="margin-bottom: 15px;">Select background color for week headers</div>
-
         <!-- Display End Times -->
         <div class="form-group">
           <label>Display event end times:</label>
@@ -225,6 +329,11 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
     <button onclick="saveConfig()">Save Configuration</button>
     
     <script>
+      const MAX_CALENDARS = 9;
+      const MIN_CALENDARS = 1;
+      let calendarCounter = 0;
+      let draggedElement = null;
+
       // We need to chain the calls:
       // 1. Get the list of calendars and populate the dropdown.
       // 2. THEN get the saved config and set the values.
@@ -260,18 +369,12 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
         google.script.run.withSuccessHandler(function(config) {
           console.log('CLIENT: Successfully received config data:', config);
           
-          if (config.termName) document.getElementById('termName').value = config.termName;
-          if (config.startDate) document.getElementById('startDate').value = config.startDate;
-          if (config.weekCount) document.getElementById('weekCount').value = config.weekCount;
+          // Set global settings
           if (config.historicalShading) document.getElementById('historicalShading').checked = config.historicalShading;
           if (config.stalePeriod) document.getElementById('stalePeriod').value = config.stalePeriod;
           if (config.hideHistoricalWeeks) document.getElementById('hideHistoricalWeeks').checked = config.hideHistoricalWeeks;
           if (config.displayEndTimes) document.getElementById('displayEndTimes').checked = config.displayEndTimes;
           if (config.newEventUrl) document.getElementById('newEventUrl').value = config.newEventUrl;
-
-          if (config.weekHeaderColor) {
-            document.getElementById('weekHeaderColor').value = config.weekHeaderColor;
-          }
 
           // ignoreNames comes as an array from the server, we join it for the text box
           if (config.ignoreNames && Array.isArray(config.ignoreNames)) {
@@ -295,6 +398,16 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
             }
           }
 
+          // Load calendars
+          if (config.calendars && Array.isArray(config.calendars) && config.calendars.length > 0) {
+            config.calendars.forEach(calendar => {
+              addCalendar(calendar);
+            });
+          } else {
+            // No calendars configured, add one default
+            addCalendar();
+          }
+
           // Once everything is set, hide the loading overlay
           document.getElementById('loadingOverlay').style.display = 'none';
         })
@@ -309,41 +422,234 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
         .getConfig();
       }
 
-      function resetColor() {
-        // Sets the color picker back to the default Google Blue
-        const defaultColor = '#4285f4';
-        document.getElementById('weekHeaderColor').value = defaultColor;
+      function addCalendar(calendarData) {
+        const container = document.getElementById('calendarsContainer');
+        const calendarCount = container.children.length;
+
+        if (calendarCount >= MAX_CALENDARS) {
+          alert('Maximum of ' + MAX_CALENDARS + ' calendars allowed.');
+          return;
+        }
+
+        calendarCounter++;
+        const calendarId = 'calendar-' + calendarCounter;
+
+        const calendarBlock = document.createElement('div');
+        calendarBlock.className = 'calendar-block';
+        calendarBlock.id = calendarId;
+        calendarBlock.draggable = true;
+
+        // Add drag event listeners
+        calendarBlock.addEventListener('dragstart', handleDragStart);
+        calendarBlock.addEventListener('dragover', handleDragOver);
+        calendarBlock.addEventListener('drop', handleDrop);
+        calendarBlock.addEventListener('dragend', handleDragEnd);
+        calendarBlock.addEventListener('dragenter', handleDragEnter);
+        calendarBlock.addEventListener('dragleave', handleDragLeave);
+
+        calendarBlock.innerHTML = `
+          <div class="calendar-header">
+            <div class="calendar-title">
+              <span class="drag-handle">☰</span>
+              <span>Calendar ${calendarCount + 1}</span>
+            </div>
+            <button class="delete-calendar-btn" onclick="deleteCalendar('${calendarId}')">Delete</button>
+          </div>
+          <div class="calendar-inputs">
+            <div class="form-group">
+              <label>Term Name:</label>
+              <input type="text" class="termName" placeholder="e.g., Term 1 2025" value="${calendarData ? calendarData.termName || '' : ''}">
+              <div class="help">Sheet name and title for this calendar.</div>
+            </div>
+            
+            <div class="form-group">
+              <label>Start Date:</label>
+              <input type="date" class="startDate" value="${calendarData ? calendarData.startDate || '' : ''}">
+            </div>
+
+            <div class="form-group">
+              <label>Number of Weeks:</label>
+              <input type="number" class="weekCount" min="1" max="52" step="1" value="${calendarData ? calendarData.weekCount || 10 : 10}">
+              <div class="help">Enter a duration between 1 and 52 weeks.</div>
+            </div>
+
+            <div class="form-group">
+              <label>Week Header Color:</label>
+              <div class="color-input-container">
+                <input type="color" class="weekHeaderColor" value="${calendarData ? calendarData.weekHeaderColor || '#4285f4' : '#4285f4'}">
+                <span class="reset-link" onclick="resetCalendarColor('${calendarId}')">Reset to default</span>
+              </div>
+              <div class="help">Background color for week headers.</div>
+            </div>
+          </div>
+        `;
+
+        container.appendChild(calendarBlock);
+        updateCalendarControls();
+      }
+
+      function deleteCalendar(calendarId) {
+        const container = document.getElementById('calendarsContainer');
+        const calendarCount = container.children.length;
+
+        if (calendarCount <= MIN_CALENDARS) {
+          alert('At least one calendar must be configured.');
+          return;
+        }
+
+        const calendarBlock = document.getElementById(calendarId);
+        if (calendarBlock) {
+          calendarBlock.remove();
+          updateCalendarControls();
+          updateCalendarNumbers();
+        }
+      }
+
+      function resetCalendarColor(calendarId) {
+        const calendarBlock = document.getElementById(calendarId);
+        const colorInput = calendarBlock.querySelector('.weekHeaderColor');
+        colorInput.value = '#4285f4';
+      }
+
+      function updateCalendarControls() {
+        const container = document.getElementById('calendarsContainer');
+        const calendarCount = container.children.length;
+        const addBtn = document.getElementById('addCalendarBtn');
+
+        // Update add button state
+        addBtn.disabled = (calendarCount >= MAX_CALENDARS);
+
+        // Update delete button states
+        const deleteButtons = container.querySelectorAll('.delete-calendar-btn');
+        deleteButtons.forEach(btn => {
+          btn.disabled = (calendarCount <= MIN_CALENDARS);
+        });
+      }
+
+      function updateCalendarNumbers() {
+        const container = document.getElementById('calendarsContainer');
+        const calendarBlocks = container.children;
+        
+        for (let i = 0; i < calendarBlocks.length; i++) {
+          const titleSpan = calendarBlocks[i].querySelector('.calendar-title span:last-child');
+          titleSpan.textContent = 'Calendar ' + (i + 1);
+        }
+      }
+
+      // Drag and Drop handlers
+      function handleDragStart(e) {
+        draggedElement = this;
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', this.innerHTML);
+      }
+
+      function handleDragOver(e) {
+        if (e.preventDefault) {
+          e.preventDefault();
+        }
+        e.dataTransfer.dropEffect = 'move';
+        return false;
+      }
+
+      function handleDragEnter(e) {
+        if (this !== draggedElement) {
+          this.classList.add('drag-over');
+        }
+      }
+
+      function handleDragLeave(e) {
+        this.classList.remove('drag-over');
+      }
+
+      function handleDrop(e) {
+        if (e.stopPropagation) {
+          e.stopPropagation();
+        }
+
+        if (draggedElement !== this) {
+          const container = document.getElementById('calendarsContainer');
+          const allBlocks = Array.from(container.children);
+          const draggedIndex = allBlocks.indexOf(draggedElement);
+          const targetIndex = allBlocks.indexOf(this);
+
+          if (draggedIndex < targetIndex) {
+            this.parentNode.insertBefore(draggedElement, this.nextSibling);
+          } else {
+            this.parentNode.insertBefore(draggedElement, this);
+          }
+
+          updateCalendarNumbers();
+        }
+
+        return false;
+      }
+
+      function handleDragEnd(e) {
+        this.classList.remove('dragging');
+        
+        const allBlocks = document.querySelectorAll('.calendar-block');
+        allBlocks.forEach(block => {
+          block.classList.remove('drag-over');
+        });
       }
 
       // Start the loading process
       loadForm();
       
       function saveConfig() {
-        // 1. Validate Number of Weeks
-        const weekInput = document.getElementById('weekCount');
-        const weekVal = parseInt(weekInput.value, 10);
+        const container = document.getElementById('calendarsContainer');
+        const calendarBlocks = container.children;
 
-        if (isNaN(weekVal) || weekVal < 1 || weekVal > 52) {
-          alert("Please enter a number of weeks between 1 and 52.");
+        if (calendarBlocks.length === 0) {
+          alert('At least one calendar must be configured.');
           return;
         }
 
-        // 2. Convert ignoreNames comma-string back to array for the server
+        // Collect all calendars
+        const calendars = [];
+        for (let i = 0; i < calendarBlocks.length; i++) {
+          const block = calendarBlocks[i];
+          const termName = block.querySelector('.termName').value.trim();
+          const startDate = block.querySelector('.startDate').value;
+          const weekCount = parseInt(block.querySelector('.weekCount').value, 10);
+          const weekHeaderColor = block.querySelector('.weekHeaderColor').value;
+
+          // Validate required fields
+          if (!termName) {
+            alert('Calendar ' + (i + 1) + ': Term Name is required.');
+            return;
+          }
+          if (!startDate) {
+            alert('Calendar ' + (i + 1) + ': Start Date is required.');
+            return;
+          }
+          if (isNaN(weekCount) || weekCount < 1 || weekCount > 52) {
+            alert('Calendar ' + (i + 1) + ': Number of weeks must be between 1 and 52.');
+            return;
+          }
+
+          calendars.push({
+            termName: termName,
+            startDate: startDate,
+            weekCount: weekCount,
+            weekHeaderColor: weekHeaderColor
+          });
+        }
+
+        // Convert ignoreNames comma-string back to array for the server
         const ignoreNamesRaw = document.getElementById('ignoreNames').value;
         const ignoreNamesArray = ignoreNamesRaw.split(',').map(s => s.trim()).filter(s => s !== '');
 
         const config = {
-          termName: document.getElementById('termName').value,
-          startDate: document.getElementById('startDate').value,
-          weekCount: weekVal, // Use the parsed integer
           calendarId: document.getElementById('calendarId').value,
           historicalShading: document.getElementById('historicalShading').checked,
           stalePeriod: document.getElementById('stalePeriod').value,
           hideHistoricalWeeks: document.getElementById('hideHistoricalWeeks').checked,
           displayEndTimes: document.getElementById('displayEndTimes').checked,
-          weekHeaderColor: document.getElementById('weekHeaderColor').value,
           newEventUrl: document.getElementById('newEventUrl').value,
-          ignoreNames: ignoreNamesArray
+          ignoreNames: ignoreNamesArray,
+          calendars: calendars
         };
         console.log('CLIENT: Submitting config: ', config);
         
@@ -351,7 +657,7 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
         // Since generateCalendar takes time, this prevents them from clicking twice
         document.getElementById('loadingOverlay').style.display = 'flex';
         // Update the loading text (targeting the div inside the overlay)
-        document.querySelector('#loadingOverlay > div:last-child').innerText = 'Saving & Generating Calendar...';
+        document.querySelector('#loadingOverlay > div:last-child').innerText = 'Saving & Generating Calendars...';
 
         google.script.run
           .withSuccessHandler(function() {

@@ -34,7 +34,7 @@
 // 9. Use "Term Calendar > Generate Calendar" to create the complete calendar.
 
 // Version number
-const VERSION = '0.0.34';
+const VERSION = '0.1.0';
 
 // Define the suffix to use to temporarily rename the existing sheet upon sheet regeneration
 const CALENDAR_SHEET_BACKUP_SUFFIX = '.bak'
@@ -129,6 +129,20 @@ const DEFAULT_STALE_PERIOD_HRS = 6;
 // for the week, the week will still consits of this number of rows + a 
 // single padding row
 const MIN_EVENT_ROWS = 5;
+
+/**
+ * Enhanced logging utility that includes function name and calendar context.
+ * @param {string} functionName - The name of the function generating the log
+ * @param {string} calendarName - The name of the calendar (or 'GLOBAL' for global operations)
+ * @param {string} message - The log message
+ * @param {string} level - Optional log level (INFO, WARN, ERROR). Defaults to INFO.
+ */
+function logMessage(functionName, calendarName, message, level) {
+  level = level || 'INFO';
+  const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+  const formattedMessage = `[${timestamp}] [${level}] [${functionName}] [${calendarName}] ${message}`;
+  Logger.log(formattedMessage);
+}
 
 /**
  * Fetches a list of all calendars the user has access to.
@@ -240,13 +254,12 @@ function showConfigDialog() {
   // 1. Load the HTML file as a template
   const template = HtmlService.createTemplateFromFile('Index');
 
-  // 2. Assign variables to the template object
-  template.termName = config.termName;
+  // 2. No need to assign variables anymore - the client will fetch them via getConfig()
 
   // 3. Evaluate the template to create the final HtmlOutput object
   const html = template.evaluate()
-  .setWidth(500)
-  .setHeight(600);
+  .setWidth(600)
+  .setHeight(700);
   SpreadsheetApp.getUi().showModalDialog(html, 'Configure Term Calendar');
 }
 
@@ -259,21 +272,26 @@ function saveConfig(config) {
   try {
     const props = PropertiesService.getDocumentProperties();
     
+    // Validate calendars array
+    if (!config.calendars || !Array.isArray(config.calendars) || config.calendars.length === 0) {
+      throw new Error("At least one calendar configuration is required.");
+    }
+    
+    if (config.calendars.length > 9) {
+      throw new Error("Maximum of 9 calendars allowed.");
+    }
+    
     // Prepare the payload. PropertiesService only stores STRINGS.
-    // We must convert booleans and numbers to strings explicitly to be safe,
-    // though .setProperties() handles most primitives automatically.
+    // Global settings
     const payload = {
-      termName: config.termName || '',
-      startDate: config.startDate || '',
-      weekCount: String(config.weekCount || '10'),
       calendarId: config.calendarId || '',
       historicalShading: String(config.historicalShading), // 'true' or 'false'
       stalePeriod: config.stalePeriod || '',
       ignoreNames: config.ignoreNames ? config.ignoreNames.join(',') : '',
       displayEndTimes: String(config.displayEndTimes || 'false'),
       hideHistoricalWeeks: String(config.hideHistoricalWeeks || 'false'),
-      weekHeaderColor: config.weekHeaderColor || '#4285f4',
-      newEventUrl: config.newEventUrl || ''
+      newEventUrl: config.newEventUrl || '',
+      calendars: JSON.stringify(config.calendars) // Store calendars array as JSON string
     };
 
     props.setProperties(payload);
@@ -296,6 +314,7 @@ function getConfig() {
   const props = PropertiesService.getDocumentProperties();
   const data = props.getProperties();
   Logger.log("getConfig(): data: " + JSON.stringify(data));
+  
   // If no data exists (first run), return an empty object or defaults
   if (Object.keys(data).length === 0) {
     Logger.log("getConfig() no properties found.");
@@ -315,23 +334,74 @@ function getConfig() {
   const displayEndTimesBool = (data.displayEndTimes === 'true');
   const hideHistoricalWeeksBool = (data.hideHistoricalWeeks === 'true');
 
-  // Calculate Monday start date using your helper function from get_monday.js
-  // Note: getMondayOfWeek expects "YYYY-MM-DD" string, which is how we stored it.
-  const mondayStart = getMondayOfWeek_(data.startDate);
+  // Check if this is the old single-calendar format (migration needed)
+  if (data.termName && !data.calendars) {
+    Logger.log("getConfig(): Migrating old single-calendar format to new multi-calendar format.");
+    
+    // Create a single calendar entry from the old format
+    const singleCalendar = {
+      termName: data.termName,
+      startDate: data.startDate,
+      weekCount: parseInt(data.weekCount, 10) || 10,
+      weekHeaderColor: data.weekHeaderColor || '#4285f4'
+    };
+    
+    // Migrate to new format and save it
+    const migratedConfig = {
+      calendarId: data.calendarId || '',
+      historicalShading: historicalShadingBool,
+      stalePeriod: data.stalePeriod || '',
+      ignoreNames: ignoreNamesList,
+      displayEndTimes: displayEndTimesBool,
+      hideHistoricalWeeks: hideHistoricalWeeksBool,
+      newEventUrl: data.newEventUrl || '',
+      calendars: [singleCalendar]
+    };
+    
+    // Save the migrated config
+    saveConfig(migratedConfig);
+    
+    // Return the migrated config with calculated fields
+    return {
+      calendarId: migratedConfig.calendarId,
+      historicalShading: historicalShadingBool,
+      stalePeriod: migratedConfig.stalePeriod,
+      ignoreNames: ignoreNamesList,
+      displayEndTimes: displayEndTimesBool,
+      hideHistoricalWeeks: hideHistoricalWeeksBool,
+      newEventUrl: migratedConfig.newEventUrl,
+      calendars: migratedConfig.calendars.map(cal => ({
+        ...cal,
+        mondayStartDate: getMondayOfWeek_(cal.startDate)
+      }))
+    };
+  }
+
+  // Parse calendars array from JSON string
+  let calendarsArray = [];
+  if (data.calendars) {
+    try {
+      calendarsArray = JSON.parse(data.calendars);
+      // Add calculated mondayStartDate to each calendar
+      calendarsArray = calendarsArray.map(cal => ({
+        ...cal,
+        mondayStartDate: getMondayOfWeek_(cal.startDate)
+      }));
+    } catch (e) {
+      Logger.log("getConfig(): Error parsing calendars JSON: " + e.toString());
+      calendarsArray = [];
+    }
+  }
 
   const configObject = {
-    termName: data.termName,
-    startDate: data.startDate,
-    weekCount: parseInt(data.weekCount, 10),
     calendarId: data.calendarId,
     historicalShading: historicalShadingBool,
     stalePeriod: data.stalePeriod,
     ignoreNames: ignoreNamesList,
     displayEndTimes: displayEndTimesBool,
     hideHistoricalWeeks: hideHistoricalWeeksBool,
-    mondayStartDate: mondayStart,
-    weekHeaderColor: data.weekHeaderColor || '#4285f4', // Defaults to Google Blue if not set
-    newEventUrl: data.newEventUrl
+    newEventUrl: data.newEventUrl,
+    calendars: calendarsArray
   };
 
   Logger.log("getConfig(): config data: " + JSON.stringify(configObject));
@@ -353,33 +423,40 @@ function isMidnight(dateObject) {
 function isStale() {
   const config = getConfig();
 
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let calSheet = ss.getSheetByName(config.termName);
-
-  if (!calSheet) {
-    return {};
+  if (!config.calendars || config.calendars.length === 0) {
+    return;
   }
 
-  const dataRange = calSheet.getRange(...LAST_GENERATED_RANGE);
-  const dataValue = dataRange.getValue();
-  const rawDate = dataValue.substring(LAST_GENERATED_TEXT.length);
-
-  const storedDate = new Date(rawDate);
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
   const now = new Date();
   const stalePeriodHrs = config.stalePeriod ? config.stalePeriod : DEFAULT_STALE_PERIOD_HRS;
+  const hoursInMs = stalePeriodHrs * 60 * 60 * 1000;
 
-  const hoursInMs = stalePeriodHrs * 60 * 60 * 1000
+  // Check each calendar sheet
+  config.calendars.forEach(calendar => {
+    let calSheet = ss.getSheetByName(calendar.termName);
 
-  const differenceMs = now.getTime() - storedDate.getTime()
-  Logger.log("isStale(): differenceMs: " + differenceMs)
-  if (differenceMs > hoursInMs && hoursInMs > 0) {
-    dataRange.setFontColor(LAST_GENERATED_STALE_FONT_COLOR);
-    dataRange.setBackground(LAST_GENERATED_STALE_BACKGROUND_COLOR);
-  } else {
-    dataRange.setFontColor(LAST_GENERATED_FONT_COLOR);
-    dataRange.setBackground(LAST_GENERATED_BACKGROUND_COLOR);
-  }
+    if (!calSheet) {
+      return;
+    }
 
+    const dataRange = calSheet.getRange(...LAST_GENERATED_RANGE);
+    const dataValue = dataRange.getValue();
+    const rawDate = dataValue.substring(LAST_GENERATED_TEXT.length);
+
+    const storedDate = new Date(rawDate);
+    const differenceMs = now.getTime() - storedDate.getTime();
+    
+    Logger.log("isStale(): Calendar: " + calendar.termName + " differenceMs: " + differenceMs);
+    
+    if (differenceMs > hoursInMs && hoursInMs > 0) {
+      dataRange.setFontColor(LAST_GENERATED_STALE_FONT_COLOR);
+      dataRange.setBackground(LAST_GENERATED_STALE_BACKGROUND_COLOR);
+    } else {
+      dataRange.setFontColor(LAST_GENERATED_FONT_COLOR);
+      dataRange.setBackground(LAST_GENERATED_BACKGROUND_COLOR);
+    }
+  });
 }
 
 function containsIgnoreName(eventTitle, ignoreString) {
@@ -388,14 +465,16 @@ function containsIgnoreName(eventTitle, ignoreString) {
   return ignoreString.some(item => lowerText.includes(item.toLowerCase()));
 }
 
-function _setVersion(lastRowIndex, config) {
+function _setVersion(lastRowIndex, termName) {
   /**
-   * Sets the version number in the Config sheet
+   * Sets the version number in the calendar sheet
+   * @param {number} lastRowIndex - The row index where the version should be placed
+   * @param {string} termName - The name of the sheet/calendar
    * @returns {void}
    */
-  Logger.log("setVersion() function started executing.");
+  Logger.log("setVersion() function started executing for: " + termName);
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(config.termName);
+  const sheet = ss.getSheetByName(termName);
   
   if (sheet) {
     sheet.getRange(lastRowIndex, 1, 1, 7)
@@ -409,6 +488,22 @@ function _setVersion(lastRowIndex, config) {
 }
 
 /**
+ * Parses a date string in "yyyy-MM-dd" format and returns a Date object at noon local time.
+ * Using noon avoids timezone boundary issues that can occur at midnight.
+ * @param {string} dateString - The date in "yyyy-MM-dd" format.
+ * @return {Date} A Date object set to noon local time.
+ */
+function parseDateString_(dateString) {
+  var parts = dateString.split('-');
+  var year = parseInt(parts[0], 10);
+  var month = parseInt(parts[1], 10) - 1; // Months are 0-indexed (0 = Jan)
+  var day = parseInt(parts[2], 10);
+  
+  // Create date at noon (12:00) to avoid timezone boundary issues
+  return new Date(year, month, day, 12, 0, 0, 0);
+}
+
+/**
  * Returns the date of the Monday for the week of the given date.
  * (Weeks start on Monday and end on Sunday).
  * * @param {string} dateString - The date in "yyyy-MM-dd" format.
@@ -417,13 +512,8 @@ function _setVersion(lastRowIndex, config) {
 function getMondayOfWeek_(dateString) {
   if (!dateString) return null;
 
-  // 1. Parse the input string manually to ensure consistent local time handling.
-  var parts = dateString.split('-');
-  var year = parseInt(parts[0], 10);
-  var month = parseInt(parts[1], 10) - 1; // Months are 0-indexed (0 = Jan)
-  var day = parseInt(parts[2], 10);
-
-  var date = new Date(year, month, day);
+  // 1. Parse the input string using the helper function
+  var date = parseDateString_(dateString);
 
   // 2. Calculate the offset to get to Monday.
   // date.getDay() returns 0 for Sunday, 1 for Monday, ... 6 for Saturday.
@@ -437,7 +527,7 @@ function getMondayOfWeek_(dateString) {
   // Sun (0) -> (0+6)%7 = 6 (6 days back)
   var distanceToMonday = (dayOfWeek + 6) % 7;
 
-  // 3. Adjust the date
+  // 3. Adjust the date by adding/subtracting days
   date.setDate(date.getDate() - distanceToMonday);
 
   // 4. Format and return the string using the Script's timezone
@@ -469,30 +559,71 @@ function getContrastColor_(hexcolor) {
   return (yiq >= 128) ? '#000000' : '#ffffff';
 }
 
-// Generate the calendar
+// Generate all calendars
 function generateCalendar() {
-  Logger.log("generateCalendar() function started executing.");
+  logMessage('generateCalendar', 'GLOBAL', 'Function started executing', 'INFO');
 
   const config = getConfig();
-  Logger.log('Historical shading = ' + config.historicalShading)
+  logMessage('generateCalendar', 'GLOBAL', 'Historical shading = ' + config.historicalShading, 'INFO');
   
-  if (!config.termName || !config.startDate || !config.weekCount) {
-    SpreadsheetApp.getUi().alert('Please configure the calendar first using "Term Calendar > Setup Configuration"');
+  if (!config.calendars || config.calendars.length === 0) {
+    SpreadsheetApp.getUi().alert('Please configure at least one calendar using "Term Calendar > Setup Configuration"');
     return;
   }
   
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const startDate = new Date(config.mondayStartDate);
-  const weekCount = parseInt(config.weekCount);
+  
+  // Delete the default sheet if it exists (only once, not per calendar)
+  const defaultSheet = ss.getSheetByName(DEFAULT_SHEET_NAME);
+  if (defaultSheet) {
+    ss.deleteSheet(defaultSheet);
+    logMessage('generateCalendar', 'GLOBAL', 'Deleted default sheet: ' + DEFAULT_SHEET_NAME, 'INFO');
+  }
+  
+  // Generate each calendar
+  let totalEventsLoaded = 0;
+  let totalEventsIgnored = 0;
+  
+  config.calendars.forEach((calendar, index) => {
+    logMessage('generateCalendar', calendar.termName, 'Starting generation for calendar ' + (index + 1) + ' of ' + config.calendars.length, 'INFO');
+    
+    try {
+      const result = generateSingleCalendar(calendar, config, index);
+      totalEventsLoaded += result.eventsLoaded;
+      totalEventsIgnored += result.eventsIgnored;
+      logMessage('generateCalendar', calendar.termName, 'Successfully generated calendar', 'INFO');
+    } catch (e) {
+      logMessage('generateCalendar', calendar.termName, 'Error generating calendar: ' + e.toString(), 'ERROR');
+      SpreadsheetApp.getActiveSpreadsheet().toast('Error generating ' + calendar.termName + ': ' + e.message, 'Error', 5);
+    }
+  });
+  
+  logMessage('generateCalendar', 'GLOBAL', 'All calendars generated. Total events: ' + totalEventsLoaded + ', Ignored: ' + totalEventsIgnored, 'INFO');
+  SpreadsheetApp.getActiveSpreadsheet().toast('Ignored ' + totalEventsIgnored + ' events.', 'Success: ' + totalEventsLoaded + ' events loaded across ' + config.calendars.length + ' calendar(s)', 7);
+}
+
+/**
+ * Generate a single calendar sheet
+ * @param {Object} calendar - The calendar configuration (termName, startDate, weekCount, weekHeaderColor)
+ * @param {Object} globalConfig - The global configuration settings
+ * @param {number} calendarIndex - The index of this calendar (for sheet positioning)
+ * @return {Object} - Returns {eventsLoaded: number, eventsIgnored: number}
+ */
+function generateSingleCalendar(calendar, globalConfig, calendarIndex) {
+  logMessage('generateSingleCalendar', calendar.termName, 'Starting calendar generation', 'INFO');
+  
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const startDate = parseDateString_(calendar.mondayStartDate);
+  const weekCount = parseInt(calendar.weekCount);
   const TIMEZONE = Session.getScriptTimeZone(); // Define timezone once
 
   // Set default behaviour for group collapsing
   let collapseGroup = true;
 
   // --- 1. Event Fetching and Dynamic Row Calculation ---
-  const calendarId = config.calendarId || 'primary';
-  const endDate = new Date(startDate);
-  endDate.setDate(startDate.getDate() + (weekCount * 7));
+  const calendarId = globalConfig.calendarId || 'primary';
+  const endDate = new Date(startDate.getTime());
+  endDate.setDate(endDate.getDate() + (weekCount * 7));
   
   let events = [];
 
@@ -521,8 +652,9 @@ function generateCalendar() {
   let ignoredEventsCounter = 0;
 
   try {
-    const calendar = CalendarApp.getCalendarById(calendarId) || CalendarApp.getDefaultCalendar();
-    events = calendar.getEvents(startDate, endDate);
+    const cal = CalendarApp.getCalendarById(calendarId) || CalendarApp.getDefaultCalendar();
+    events = cal.getEvents(startDate, endDate);
+    logMessage('generateSingleCalendar', calendar.termName, 'Fetched ' + events.length + ' events from calendar', 'INFO');
     
     // Initialize eventsByWeek array with the minimum row count defined
     for (let i = 0; i < weekCount; i++) {
@@ -537,8 +669,8 @@ function generateCalendar() {
 
       // If ignoreNames are provided in the config, ignore any events where
       // the event title contains ANY of the strings provided
-      if (config.ignoreNames.length > 0){
-        if (containsIgnoreName(eventTitle, config.ignoreNames)) {
+      if (globalConfig.ignoreNames.length > 0){
+        if (containsIgnoreName(eventTitle, globalConfig.ignoreNames)) {
           ignoredEventsCounter++;
           return;
         }
@@ -548,7 +680,7 @@ function generateCalendar() {
       // was NOT created using the "All Day" checkbox in the UI. In this case, set the isAllDay
       // flag manually so the start time does not get displayed in the term planner.
       if (isMidnight(eventStart) && isMidnight(eventEnd) && !isAllDay) {
-        Logger.log('Manually set isAllDay to true for: ' + eventTitle);
+        logMessage('generateSingleCalendar', calendar.termName, 'Manually set isAllDay to true for: ' + eventTitle, 'INFO');
         isAllDay = true;
       }
 
@@ -564,7 +696,7 @@ function generateCalendar() {
       
       let eventTimeText = eventTitle; 
       if (!isAllDay) {
-        if (config.displayEndTimes) {
+        if (globalConfig.displayEndTimes) {
           eventTimeText = `${eventTitle} [${Utilities.formatDate(eventStart, TIMEZONE, 'h:mma').toLowerCase()} - ${Utilities.formatDate(eventEnd, TIMEZONE, 'h:mma').toLowerCase()}]`;
         } 
         else {
@@ -611,15 +743,15 @@ function generateCalendar() {
       }
     });
   } catch (e) {
-    SpreadsheetApp.getActiveSpreadsheet().toast('Error loading calendar events: ' + e.message, 'Error', 5);
-    return;
+    logMessage('generateSingleCalendar', calendar.termName, 'Error loading calendar events: ' + e.toString(), 'ERROR');
+    throw new Error('Error loading calendar events: ' + e.message);
   }
   // --- END Event Fetching ---
 
 
   // --- 2. Sheet New Term Planner Setup ---
 
-  // As the config sheet is hidden, we cannot delete the only remaining sheet in the spreadsheet, so we have to
+  // As we cannot delete the only remaining sheet in the spreadsheet, we have to
   // do the following dance
 
   // a. Deletes any existing backup sheet
@@ -627,33 +759,31 @@ function generateCalendar() {
   // c. Inserts the new calendar sheet
   // d. Deletes the backup sheet
 
-  let calSheet = ss.getSheetByName(config.termName);
-  let calSheetBackupName = `${config.termName}${CALENDAR_SHEET_BACKUP_SUFFIX}`
+  let calSheet = ss.getSheetByName(calendar.termName);
+  let calSheetBackupName = `${calendar.termName}${CALENDAR_SHEET_BACKUP_SUFFIX}`
   
   let calSheetBackup = ss.getSheetByName(calSheetBackupName);
   if (calSheetBackup) {
     ss.deleteSheet(calSheetBackup);
+    logMessage('generateSingleCalendar', calendar.termName, 'Deleted existing backup sheet', 'INFO');
   }
 
   if (calSheet) {
-    calSheet.setName(calSheetBackupName)
+    calSheet.setName(calSheetBackupName);
+    logMessage('generateSingleCalendar', calendar.termName, 'Renamed existing sheet to backup', 'INFO');
   }
 
-  // Insert the new sheet at index 0 (first position)
-  calSheet = ss.insertSheet(config.termName, 0);
+  // Insert the new sheet at the appropriate position (based on calendar index)
+  calSheet = ss.insertSheet(calendar.termName, calendarIndex);
   calSheet.setHiddenGridlines(true);
   calSheet.activate();
+  logMessage('generateSingleCalendar', calendar.termName, 'Created new sheet at index ' + calendarIndex, 'INFO');
   
   // Delete the backup sheet if it exists
   calSheetBackup = ss.getSheetByName(calSheetBackupName);
   if (calSheetBackup) {
     ss.deleteSheet(calSheetBackup);
-  }
-
-  // Delete the default sheet if it exists
-  defaultSheet = ss.getSheetByName(DEFAULT_SHEET_NAME);
-  if (defaultSheet) {
-    ss.deleteSheet(defaultSheet);
+    logMessage('generateSingleCalendar', calendar.termName, 'Deleted backup sheet', 'INFO');
   }
 
   // --- 3. Drawing the Calendar Structure ---
@@ -661,10 +791,10 @@ function generateCalendar() {
   // Set up title
   const titleRange = calSheet.getRange(...TITLE_RANGE).merge();
   
-  if (config.newEventUrl && config.newEventUrl.trim() !== "") {
+  if (globalConfig.newEventUrl && globalConfig.newEventUrl.trim() !== "") {
     // --- RICH TEXT MODE (Title + Link) ---
     const linkText = "Add New Event";
-    const fullText = config.termName + "\n" + linkText;
+    const fullText = calendar.termName + "\n" + linkText;
 
     // Create style for the main Title (Top line)
     const titleStyle = SpreadsheetApp.newTextStyle()
@@ -684,9 +814,9 @@ function generateCalendar() {
     // Build the Rich Text
     const richText = SpreadsheetApp.newRichTextValue()
       .setText(fullText)
-      .setTextStyle(0, config.termName.length, titleStyle) // Apply Title Style
-      .setTextStyle(config.termName.length + 1, fullText.length, linkStyle) // Apply Link Style
-      .setLinkUrl(config.termName.length + 1, fullText.length, config.newEventUrl) // Make only bottom part clickable
+      .setTextStyle(0, calendar.termName.length, titleStyle) // Apply Title Style
+      .setTextStyle(calendar.termName.length + 1, fullText.length, linkStyle) // Apply Link Style
+      .setLinkUrl(calendar.termName.length + 1, fullText.length, globalConfig.newEventUrl) // Make only bottom part clickable
       .build();
 
     titleRange.setRichTextValue(richText);
@@ -696,7 +826,7 @@ function generateCalendar() {
 
   } else {
     // --- STANDARD MODE (Title only) ---
-    titleRange.setValue(config.termName)
+    titleRange.setValue(calendar.termName)
       .setFontSize(TITLE_FONT_SIZE)
       .setFontWeight(TITLE_FONT_WEIGHT);
   }
@@ -727,8 +857,8 @@ function generateCalendar() {
   for (let week = 0; week < weekCount; week++) {
     const eventRowsThisWeek = eventsByWeek[week]; // Use the dynamically calculated required rows
     
-    // Calculate dynamic font color based on config background
-    const bg = config.weekHeaderColor;
+    // Calculate dynamic font color based on calendar-specific background
+    const bg = calendar.weekHeaderColor || '#4285f4';
     const fontColor = getContrastColor_(bg);
 
     // Week header
@@ -745,20 +875,25 @@ function generateCalendar() {
     // Day headers
     const dayHeaderRow = currentRow;
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    
     for (let day = 0; day < 7; day++) {
       const dayOffset = week * 7 + day;
-      const currentDate = new Date(startDate);
-      currentDate.setDate(startDate.getDate() + dayOffset);
+      const currentDate = new Date(startDate.getTime());
+      currentDate.setDate(currentDate.getDate() + dayOffset);
       
       const cell = calSheet.getRange(dayHeaderRow, day + 1);
-      cell.setValue(`${days[day].substring(0, 3)} ${Utilities.formatDate(currentDate, TIMEZONE, 'MMM d')}`);
+      const cellValue = `${days[day].substring(0, 3)} ${Utilities.formatDate(currentDate, TIMEZONE, 'MMM d')}`;
+      
+      cell.clear(); // Clear any previous content and formatting
+      cell.setNumberFormat('@'); // Force text format BEFORE setting value to prevent auto-date formatting
+      cell.setValue(cellValue);
       cell.setFontWeight(DAY_HEADER_FONT_WEIGHT);
       cell.setVerticalAlignment(DAY_HEADER_VERTICAL_ALIGNMENT);
       cell.setHorizontalAlignment(DAY_HEADER_HORIZONTAL_ALIGNMENT);
       cell.setWrap(DAY_HEADER_WRAP);
       cell.setBorder(true, true, true, true, false, false, BORDER_COLOR, BORDER_STYLE);
 
-      if (config.historicalShading) {
+      if (globalConfig.historicalShading) {
         if (Utilities.formatDate(currentDate, TIMEZONE, 'yyyy-MM-dd') < Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd')) {
           cell.setFontColor(HISTORICAL_SHADING_FONT_COLOR)
         }
@@ -822,7 +957,7 @@ function generateCalendar() {
     const range = calSheet.getRange(`${currentRow}:${currentRow + eventRowsThisWeek}`);
     range.shiftRowGroupDepth(1);
 
-    if (config.hideHistoricalWeeks && collapseGroup) {
+    if (globalConfig.hideHistoricalWeeks && collapseGroup) {
       const rowGroup = calSheet.getRowGroup(currentRow, 1);
       rowGroup.collapse();
     }
@@ -851,7 +986,7 @@ function generateCalendar() {
     
       // Set event font color to black by default and override if the date is prior to todays date
       let eventFontColor = DEFAULT_EVENT_FONT_COLOR
-      if (config.historicalShading) {
+      if (globalConfig.historicalShading) {
         const dateIter = Utilities.formatDate(new Date(dateStr), TIMEZONE, 'yyyy-MM-dd');
         const dateNow = Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd')
         if (Utilities.formatDate(new Date(dateStr), TIMEZONE, 'yyyy-MM-dd') < Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd')) {
@@ -889,7 +1024,12 @@ function generateCalendar() {
   }
 
   // Set the version number
-  _setVersion(currentRow, config);
+  _setVersion(currentRow, calendar.termName);
 
-  SpreadsheetApp.getActiveSpreadsheet().toast('Ignored ' + ignoredEventsCounter + ' events.', 'Success: ' + events.length + ' events loaded', 7);
+  logMessage('generateSingleCalendar', calendar.termName, 'Calendar generation complete. Events loaded: ' + events.length + ', Ignored: ' + ignoredEventsCounter, 'INFO');
+  
+  return {
+    eventsLoaded: events.length,
+    eventsIgnored: ignoredEventsCounter
+  };
 }
