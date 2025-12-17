@@ -278,7 +278,8 @@ function saveConfig(config) {
       ignoreNames: config.ignoreNames ? config.ignoreNames.join(',') : '',
       displayEndTimes: String(config.displayEndTimes || 'false'),
       hideHistoricalWeeks: String(config.hideHistoricalWeeks || 'false'),
-      weekHeaderColor: config.weekHeaderColor || '#4285f4'
+      weekHeaderColor: config.weekHeaderColor || '#4285f4',
+      newEventUrl: config.newEventUrl || ''
     };
 
     props.setProperties(payload);
@@ -335,7 +336,8 @@ function getConfig() {
     displayEndTimes: displayEndTimesBool,
     hideHistoricalWeeks: hideHistoricalWeeksBool,
     mondayStartDate: mondayStart,
-    weekHeaderColor: data.weekHeaderColor || '#4285f4' // Defaults to Google Blue if not set
+    weekHeaderColor: data.weekHeaderColor || '#4285f4', // Defaults to Google Blue if not set
+    newEventUrl: data.newEventUrl
   };
 
   Logger.log("getConfig(): config data: " + JSON.stringify(configObject));
@@ -663,12 +665,52 @@ function generateCalendar() {
   // --- 3. Drawing the Calendar Structure ---
 
   // Set up title
-  calSheet.getRange(...TITLE_RANGE)
-    .merge()
-    .setValue(config.termName)
-    .setFontSize(TITLE_FONT_SIZE)
-    .setFontWeight(TITLE_FONT_WEIGHT)
+  const titleRange = calSheet.getRange(...TITLE_RANGE).merge();
+  
+  if (config.newEventUrl && config.newEventUrl.trim() !== "") {
+    // --- RICH TEXT MODE (Title + Link) ---
+    const linkText = "Add New Event";
+    const fullText = config.termName + "\n" + linkText;
+
+    // Create style for the main Title (Top line)
+    const titleStyle = SpreadsheetApp.newTextStyle()
+      .setFontSize(TITLE_FONT_SIZE)
+      .setBold(true) // TITLE_FONT_WEIGHT is 'bold'
+      .setForegroundColor("#000000") // Default black for title
+      .build();
+
+    // Create style for the Link (Bottom line)
+    const linkStyle = SpreadsheetApp.newTextStyle()
+      .setFontSize(10) // Smaller font for the link
+      .setBold(false)
+      .setForegroundColor("#1155cc") // Standard Google Link Blue
+      .setUnderline(true)
+      .build();
+
+    // Build the Rich Text
+    const richText = SpreadsheetApp.newRichTextValue()
+      .setText(fullText)
+      .setTextStyle(0, config.termName.length, titleStyle) // Apply Title Style
+      .setTextStyle(config.termName.length + 1, fullText.length, linkStyle) // Apply Link Style
+      .setLinkUrl(config.termName.length + 1, fullText.length, config.newEventUrl) // Make only bottom part clickable
+      .build();
+
+    titleRange.setRichTextValue(richText);
+    
+    // We must enable wrapping so the newline character (\n) works
+    titleRange.setWrap(true);
+
+  } else {
+    // --- STANDARD MODE (Title only) ---
+    titleRange.setValue(config.termName)
+      .setFontSize(TITLE_FONT_SIZE)
+      .setFontWeight(TITLE_FONT_WEIGHT);
+  }
+
+  // Common alignment settings for both modes
+  titleRange
     .setHorizontalAlignment(TITLE_HORIZONTAL_ALIGNMENT)
+    .setVerticalAlignment('middle') // Ensures it looks good if row expands
     .activate();
   
   // Show the time the calendar was generated

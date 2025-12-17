@@ -162,6 +162,11 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
     <details>
       <summary>Advanced Configuration</summary>
       <div>
+        <div class="form-group">
+          <label>New Event URL (Optional):</label>
+          <input type="text" id="newEventUrl" placeholder="e.g. https://calendar.google.com/...">
+          <div class="help">Adds a clickable "Add New Event" link below the title.</div>
+        </div>
         <!-- Stale Period -->
         <div class="form-group">
           <label>Stale data period:</label>
@@ -261,6 +266,7 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
           if (config.stalePeriod) document.getElementById('stalePeriod').value = config.stalePeriod;
           if (config.hideHistoricalWeeks) document.getElementById('hideHistoricalWeeks').checked = config.hideHistoricalWeeks;
           if (config.displayEndTimes) document.getElementById('displayEndTimes').checked = config.displayEndTimes;
+          if (config.newEventUrl) document.getElementById('newEventUrl').value = config.newEventUrl;
 
           if (config.weekHeaderColor) {
             document.getElementById('weekHeaderColor').value = config.weekHeaderColor;
@@ -335,6 +341,7 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
           hideHistoricalWeeks: document.getElementById('hideHistoricalWeeks').checked,
           displayEndTimes: document.getElementById('displayEndTimes').checked,
           weekHeaderColor: document.getElementById('weekHeaderColor').value,
+          newEventUrl: document.getElementById('newEventUrl').value,
           ignoreNames: ignoreNamesArray
         };
         console.log('CLIENT: Submitting config: ', config);
