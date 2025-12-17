@@ -338,10 +338,24 @@ https://github.com/dcoghlan/School-Term-At-A-Glance
           ignoreNames: ignoreNamesArray
         };
         console.log('CLIENT: Submitting config: ', config);
-        google.script.run.withSuccessHandler(function() {
-          alert('Configuration saved! Now use "Term Calendar > Generate Calendar" to create your calendar.');
-          google.script.host.close();
-        }).saveConfig(config);
+        
+        // Show the loading overlay again so the user knows work is happening
+        // Since generateCalendar takes time, this prevents them from clicking twice
+        document.getElementById('loadingOverlay').style.display = 'flex';
+        // Update the loading text (targeting the div inside the overlay)
+        document.querySelector('#loadingOverlay > div:last-child').innerText = 'Saving & Generating Calendar...';
+
+        google.script.run
+          .withSuccessHandler(function() {
+            // Close the modal once the server returns (which means calendar is done)
+            google.script.host.close();
+          })
+          .withFailureHandler(function(err) {
+            // If something goes wrong, hide loader and alert user
+            document.getElementById('loadingOverlay').style.display = 'none';
+            alert("Error: " + err.message);
+          })
+          .saveConfig(config);
       }
     </script>
   </body>

@@ -284,6 +284,8 @@ function saveConfig(config) {
     props.setProperties(payload);
     Logger.log("Configuration saved successfully via PropertiesService.");
     
+    generateCalendar();
+
   } catch (e) {
     Logger.log("Error in saveConfig: " + e.toString());
     throw e;
