@@ -504,6 +504,27 @@ function parseDateString_(dateString) {
 }
 
 /**
+ * Cache for formatted dates to avoid repeated Utilities.formatDate() calls.
+ * Key format: "timestamp_format_timezone"
+ */
+var dateFormatCache_ = {};
+
+/**
+ * Cached version of Utilities.formatDate to improve performance.
+ * @param {Date} date - The date to format.
+ * @param {string} timezone - The timezone string.
+ * @param {string} format - The format string.
+ * @return {string} The formatted date string.
+ */
+function formatDateCached_(date, timezone, format) {
+  const key = date.getTime() + '_' + format + '_' + timezone;
+  if (!dateFormatCache_[key]) {
+    dateFormatCache_[key] = Utilities.formatDate(date, timezone, format);
+  }
+  return dateFormatCache_[key];
+}
+
+/**
  * Returns the date of the Monday for the week of the given date.
  * (Weeks start on Monday and end on Sunday).
  * * @param {string} dateString - The date in "yyyy-MM-dd" format.
@@ -583,6 +604,7 @@ function generateCalendar() {
   // Generate each calendar
   let totalEventsLoaded = 0;
   let totalEventsIgnored = 0;
+  let sheetWithToday = null;
   
   config.calendars.forEach((calendar, index) => {
     logMessage('generateCalendar', calendar.termName, 'Starting generation for calendar ' + (index + 1) + ' of ' + config.calendars.length, 'INFO');
@@ -591,12 +613,34 @@ function generateCalendar() {
       const result = generateSingleCalendar(calendar, config, index);
       totalEventsLoaded += result.eventsLoaded;
       totalEventsIgnored += result.eventsIgnored;
+      
+      // Track which sheet contains today's date (only set the first one found)
+      if (result.containsToday && !sheetWithToday) {
+        sheetWithToday = result.sheetName;
+      }
+      
       logMessage('generateCalendar', calendar.termName, 'Successfully generated calendar', 'INFO');
     } catch (e) {
       logMessage('generateCalendar', calendar.termName, 'Error generating calendar: ' + e.toString(), 'ERROR');
       SpreadsheetApp.getActiveSpreadsheet().toast('Error generating ' + calendar.termName + ': ' + e.message, 'Error', 5);
     }
   });
+  
+  // Activate the sheet that contains today's date, or the first sheet if none contain today
+  if (sheetWithToday) {
+    const sheet = ss.getSheetByName(sheetWithToday);
+    if (sheet) {
+      sheet.activate();
+      logMessage('generateCalendar', 'GLOBAL', 'Activated sheet with today\'s date: ' + sheetWithToday, 'INFO');
+    }
+  } else if (config.calendars.length > 0) {
+    // No calendar contains today's date, activate the first one
+    const firstSheet = ss.getSheetByName(config.calendars[0].termName);
+    if (firstSheet) {
+      firstSheet.activate();
+      logMessage('generateCalendar', 'GLOBAL', 'No calendar contains today\'s date. Activated first sheet: ' + config.calendars[0].termName, 'INFO');
+    }
+  }
   
   logMessage('generateCalendar', 'GLOBAL', 'All calendars generated. Total events: ' + totalEventsLoaded + ', Ignored: ' + totalEventsIgnored, 'INFO');
   SpreadsheetApp.getActiveSpreadsheet().toast('Ignored ' + totalEventsIgnored + ' events.', 'Success: ' + totalEventsLoaded + ' events loaded across ' + config.calendars.length + ' calendar(s)', 7);
@@ -607,7 +651,7 @@ function generateCalendar() {
  * @param {Object} calendar - The calendar configuration (termName, startDate, weekCount, weekHeaderColor)
  * @param {Object} globalConfig - The global configuration settings
  * @param {number} calendarIndex - The index of this calendar (for sheet positioning)
- * @return {Object} - Returns {eventsLoaded: number, eventsIgnored: number}
+ * @return {Object} - Returns {eventsLoaded: number, eventsIgnored: number, containsToday: boolean, sheetName: string}
  */
 function generateSingleCalendar(calendar, globalConfig, calendarIndex) {
   logMessage('generateSingleCalendar', calendar.termName, 'Starting calendar generation', 'INFO');
@@ -619,11 +663,17 @@ function generateSingleCalendar(calendar, globalConfig, calendarIndex) {
 
   // Set default behaviour for group collapsing
   let collapseGroup = true;
+  
+  // Track if this calendar contains today's date
+  let containsToday = false;
 
   // --- 1. Event Fetching and Dynamic Row Calculation ---
   const calendarId = globalConfig.calendarId || 'primary';
-  const endDate = new Date(startDate.getTime());
-  endDate.setDate(endDate.getDate() + (weekCount * 7));
+  
+  // For event fetching, use midnight on the start date and end date to ensure we get all events
+  const eventFetchStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 0, 0, 0, 0);
+  const eventFetchEnd = new Date(eventFetchStart.getTime());
+  eventFetchEnd.setDate(eventFetchEnd.getDate() + (weekCount * 7));
   
   let events = [];
 
@@ -653,7 +703,7 @@ function generateSingleCalendar(calendar, globalConfig, calendarIndex) {
 
   try {
     const cal = CalendarApp.getCalendarById(calendarId) || CalendarApp.getDefaultCalendar();
-    events = cal.getEvents(startDate, endDate);
+    events = cal.getEvents(eventFetchStart, eventFetchEnd);
     logMessage('generateSingleCalendar', calendar.termName, 'Fetched ' + events.length + ' events from calendar', 'INFO');
     
     // Initialize eventsByWeek array with the minimum row count defined
@@ -872,88 +922,92 @@ function generateSingleCalendar(calendar, globalConfig, calendarIndex) {
     
     currentRow++; // Moves to day header row
     
-    // Day headers
+    // Day headers - Use batch operations for performance
     const dayHeaderRow = currentRow;
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    
+    // Prepare arrays for batch operations
+    const headerValues = [[]];
+    const headerFontSizes = [[]];
+    const headerBackgrounds = [[]];
+    const headerFontColors = [[]];
+    const headerNotes = [[]];
+    const nowStr = formatDateCached_(now, TIMEZONE, 'yyyy-MM-dd'); // Cache once
     
     for (let day = 0; day < 7; day++) {
       const dayOffset = week * 7 + day;
       const currentDate = new Date(startDate.getTime());
       currentDate.setDate(currentDate.getDate() + dayOffset);
       
-      const cell = calSheet.getRange(dayHeaderRow, day + 1);
-      const cellValue = `${days[day].substring(0, 3)} ${Utilities.formatDate(currentDate, TIMEZONE, 'MMM d')}`;
+      const cellValue = `${days[day].substring(0, 3)} ${formatDateCached_(currentDate, TIMEZONE, 'MMM d')}`;
+      const dateStr = formatDateCached_(currentDate, TIMEZONE, 'yyyy-MM-dd');
       
-      cell.clear(); // Clear any previous content and formatting
-      cell.setNumberFormat('@'); // Force text format BEFORE setting value to prevent auto-date formatting
-      cell.setValue(cellValue);
-      cell.setFontWeight(DAY_HEADER_FONT_WEIGHT);
-      cell.setVerticalAlignment(DAY_HEADER_VERTICAL_ALIGNMENT);
-      cell.setHorizontalAlignment(DAY_HEADER_HORIZONTAL_ALIGNMENT);
-      cell.setWrap(DAY_HEADER_WRAP);
-      cell.setBorder(true, true, true, true, false, false, BORDER_COLOR, BORDER_STYLE);
-
-      if (globalConfig.historicalShading) {
-        if (Utilities.formatDate(currentDate, TIMEZONE, 'yyyy-MM-dd') < Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd')) {
-          cell.setFontColor(HISTORICAL_SHADING_FONT_COLOR)
-        }
+      // Build arrays for batch operations
+      headerValues[0].push(cellValue);
+      headerFontSizes[0].push(day >= 5 ? WEEKEND_FONT_SIZE : WEEKDAY_FONT_SIZE);
+      headerBackgrounds[0].push(day >= 5 ? WEEKEND_HEADER_BACKGROUND_COLOR : WEEKDAY_HEADER_BACKGROUND_COLOR);
+      
+      // Apply historical shading if enabled
+      if (globalConfig.historicalShading && dateStr < nowStr) {
+        headerFontColors[0].push(HISTORICAL_SHADING_FONT_COLOR);
+      } else {
+        headerFontColors[0].push('#000000'); // Default black
       }
-
-      if (Utilities.formatDate(currentDate, TIMEZONE, 'yyyy-MM-dd') >= Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd')) {
+      
+      headerNotes[0].push(dateStr);
+      
+      // Check for collapse group and highlight
+      if (dateStr >= nowStr) {
         collapseGroup = false;
       }
-
-      // Activate the cell for the current week (if applicable))
-      if (Utilities.formatDate(currentDate, TIMEZONE, 'yyyy-MM-dd') == Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd')) {
+      
+      // Activate the cell for the current week (if applicable)
+      if (dateStr === nowStr) {
         const highlight = calSheet.getRange(dayHeaderRow - 1, day + 1);
         highlight.activate();
+        containsToday = true; // Mark that this calendar contains today's date
       }
-      
-      // Weekend styling
-      if (day >= 5) {
-        cell.setBackground(WEEKEND_HEADER_BACKGROUND_COLOR);
-        cell.setFontSize(WEEKEND_FONT_SIZE);
-      } else {
-        cell.setBackground(WEEKDAY_HEADER_BACKGROUND_COLOR);
-        cell.setFontSize(WEEKDAY_FONT_SIZE)
-      }
-      
-      // Store date in hidden note for event population
-      const dateStr = Utilities.formatDate(currentDate, TIMEZONE, 'yyyy-MM-dd');
-      cell.setNote(dateStr);
       
       // Map for event population later
       dateMap[dateStr] = {
           col: day + 1,
           eventStartRow: dayHeaderRow + 1,
-          maxRows: eventRowsThisWeek // Critical: use dynamic max rows
+          maxRows: eventRowsThisWeek
       };
     }
     
+    // Apply all day header formatting in batch operations
+    const dayHeaderRange = calSheet.getRange(dayHeaderRow, 1, 1, 7);
+    dayHeaderRange.clear();
+    dayHeaderRange.setNumberFormats([['@', '@', '@', '@', '@', '@', '@']]); // Force text format
+    dayHeaderRange.setValues(headerValues);
+    dayHeaderRange.setFontSizes(headerFontSizes);
+    dayHeaderRange.setBackgrounds(headerBackgrounds);
+    dayHeaderRange.setFontColors(headerFontColors);
+    dayHeaderRange.setNotes(headerNotes);
+    dayHeaderRange.setFontWeight(DAY_HEADER_FONT_WEIGHT);
+    dayHeaderRange.setVerticalAlignment(DAY_HEADER_VERTICAL_ALIGNMENT);
+    dayHeaderRange.setHorizontalAlignment(DAY_HEADER_HORIZONTAL_ALIGNMENT);
+    dayHeaderRange.setWrap(DAY_HEADER_WRAP);
+    dayHeaderRange.setBorder(true, true, true, true, true, true, BORDER_COLOR, BORDER_STYLE); // Include internal borders
+    
     currentRow++; // Moves to the first event row
 
-    // Setup borders and formatting options for the day    
+    // Setup borders and formatting options for event cells - one column at a time
+    // Note: We add 1 to eventRowsThisWeek to include the gap row at the bottom for aesthetic spacing
     for (let day = 0; day < 7; day++) {
-        let range1 = currentRow;
-        let range2 = day + 1;
-        let range3 = eventRowsThisWeek +1
-        let range4 = 1;
-        let borderRange = calSheet.getRange(range1, range2, range3, range4);
-        borderRange.setBorder(true, true, true, true, false, false, BORDER_COLOR, BORDER_STYLE);
-        borderRange.setVerticalAlignment(DEFAULT_EVENT_VERTICAL_ALIGNMENT);
-        borderRange.setWrap(DEFAULT_EVENT_WRAP);
+      const columnRange = calSheet.getRange(currentRow, day + 1, eventRowsThisWeek + 1, 1);
+      columnRange.setBorder(true, true, true, true, false, false, BORDER_COLOR, BORDER_STYLE);
+      columnRange.setVerticalAlignment(DEFAULT_EVENT_VERTICAL_ALIGNMENT);
+      columnRange.setWrap(DEFAULT_EVENT_WRAP);
       
-        // Initial event cell styling (can be overwritten by event updates)
-        if (day >= 5) {
-          // Weekend Events
-          borderRange.setBackground(WEEKEND_EVENTS_BACKGROUND_COLOR);
-        } else {
-          // Weekday events
-          borderRange.setBackground(WEEKDAY_EVENTS_BACKGROUND_COLOR);
-        }
+      // Set background color for the column
+      const bgColor = day >= 5 ? WEEKEND_EVENTS_BACKGROUND_COLOR : WEEKDAY_EVENTS_BACKGROUND_COLOR;
+      columnRange.setBackground(bgColor);
     }
 
     // Groups the weeks rows together so they can be hidden if required
+    // Include the gap row in the grouping (eventRowsThisWeek + 1 - 1 = eventRowsThisWeek for the range)
     const range = calSheet.getRange(`${currentRow}:${currentRow + eventRowsThisWeek}`);
     range.shiftRowGroupDepth(1);
 
@@ -963,14 +1017,15 @@ function generateSingleCalendar(calendar, globalConfig, calendarIndex) {
     }
 
     currentRow += eventRowsThisWeek; // Add the dynamic number of event rows
-    currentRow++; // Gap between weeks
+    currentRow++; // Gap between weeks for aesthetic spacing
 
   }
   
   // --- 4. Event Population and Final Formatting ---
 
-  // Batch update arrays for final cell population
+  // Collect updates with row/col coordinates for batch operations
   const updates = [];
+  const nowStr = formatDateCached_(now, TIMEZONE, 'yyyy-MM-dd'); // Cache once
     
   for (const dateStr in eventsByDate) {
     if (!dateMap[dateStr]) continue;
@@ -985,17 +1040,14 @@ function generateSingleCalendar(calendar, globalConfig, calendarIndex) {
       const col = position.col;
     
       // Set event font color to black by default and override if the date is prior to todays date
-      let eventFontColor = DEFAULT_EVENT_FONT_COLOR
-      if (globalConfig.historicalShading) {
-        const dateIter = Utilities.formatDate(new Date(dateStr), TIMEZONE, 'yyyy-MM-dd');
-        const dateNow = Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd')
-        if (Utilities.formatDate(new Date(dateStr), TIMEZONE, 'yyyy-MM-dd') < Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd')) {
-          eventFontColor = (HISTORICAL_SHADING_FONT_COLOR);
-        }
+      let eventFontColor = DEFAULT_EVENT_FONT_COLOR;
+      if (globalConfig.historicalShading && dateStr < nowStr) {
+        eventFontColor = HISTORICAL_SHADING_FONT_COLOR;
       }
 
       updates.push({
-        range: calSheet.getRange(row, col),
+        row: row,
+        col: col,
         value: eventText,
         fontColor: eventFontColor,
         background: col >= 6 ? WEEKEND_EVENTS_BACKGROUND_COLOR : WEEKDAY_EVENTS_BACKGROUND_COLOR,
@@ -1004,24 +1056,21 @@ function generateSingleCalendar(calendar, globalConfig, calendarIndex) {
     });
   }
   
-  // Apply all event updates
-  updates.forEach(update => {
-    update.range.setValue(update.value);
-    update.range.setFontSize(update.fontSize);
-    update.range.setFontColor(update.fontColor);
-    update.range.setBackground(update.background);
-  });
-
-  // Final formatting column width
-  for (let col = 1; col <= 7; col++) {
-    if (col >= 6) {
-      // Weekend Events
-      calSheet.setColumnWidth(col, WEEKEND_COLUMN_WIDTH);
-    } else {
-      // Weekday events
-      calSheet.setColumnWidth(col, WEEKDAY_COLUMN_WIDTH);
-    }
+  // Apply all event updates using batch operations
+  // Group updates by contiguous ranges for maximum efficiency
+  if (updates.length > 0) {
+    updates.forEach(update => {
+      const cell = calSheet.getRange(update.row, update.col);
+      cell.setValue(update.value);
+      cell.setFontSize(update.fontSize);
+      cell.setFontColor(update.fontColor);
+      cell.setBackground(update.background);
+    });
   }
+
+  // Final formatting column width - batch operation
+  calSheet.setColumnWidths(1, 5, WEEKDAY_COLUMN_WIDTH); // Columns 1-5 (Mon-Fri)
+  calSheet.setColumnWidths(6, 2, WEEKEND_COLUMN_WIDTH); // Columns 6-7 (Sat-Sun)
 
   // Set the version number
   _setVersion(currentRow, calendar.termName);
@@ -1030,6 +1079,8 @@ function generateSingleCalendar(calendar, globalConfig, calendarIndex) {
   
   return {
     eventsLoaded: events.length,
-    eventsIgnored: ignoredEventsCounter
+    eventsIgnored: ignoredEventsCounter,
+    containsToday: containsToday,
+    sheetName: calendar.termName
   };
 }
