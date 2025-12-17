@@ -101,7 +101,7 @@ There are several items that are required to be configured so as to generate a T
 
 | Config Item | Description |
 | :--- | :--- |
-| **Term Name** | This is the heading text that gets displayed at the top of the generated calendar. |
+| **Term Name** | The text enetered will be used to name the sheet and also displayed as the title. |
 | **Start Date** | Select the start date for week 1 of the generated calendar. |
 | **Number of Weeks** | Select the number of weeks for the school term. |
 | **Select Google Calendar** | Select the Google Calendar that the events will be read from. |

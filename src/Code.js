@@ -36,12 +36,6 @@
 // Version number
 const VERSION = '0.0.34';
 
-// Defines the name of the sheet that config options are saved to/read from
-const CONFIG_SHEET = 'Config';
-
-// Defines the name of the sheet for the generated calendar
-const CALENDAR_SHEET = 'Term Calendar';
-
 // Define the suffix to use to temporarily rename the existing sheet upon sheet regeneration
 const CALENDAR_SHEET_BACKUP_SUFFIX = '.bak'
 
@@ -360,7 +354,7 @@ function isStale() {
   const config = getConfig();
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let calSheet = ss.getSheetByName(CALENDAR_SHEET);
+  let calSheet = ss.getSheetByName(config.termName);
 
   if (!calSheet) {
     return {};
@@ -394,14 +388,14 @@ function containsIgnoreName(eventTitle, ignoreString) {
   return ignoreString.some(item => lowerText.includes(item.toLowerCase()));
 }
 
-function _setVersion(lastRowIndex) {
+function _setVersion(lastRowIndex, config) {
   /**
    * Sets the version number in the Config sheet
    * @returns {void}
    */
   Logger.log("setVersion() function started executing.");
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(CALENDAR_SHEET);
+  const sheet = ss.getSheetByName(config.termName);
   
   if (sheet) {
     sheet.getRange(lastRowIndex, 1, 1, 7)
@@ -633,8 +627,8 @@ function generateCalendar() {
   // c. Inserts the new calendar sheet
   // d. Deletes the backup sheet
 
-  let calSheet = ss.getSheetByName(CALENDAR_SHEET);
-  let calSheetBackupName = `${CALENDAR_SHEET}${CALENDAR_SHEET_BACKUP_SUFFIX}`
+  let calSheet = ss.getSheetByName(config.termName);
+  let calSheetBackupName = `${config.termName}${CALENDAR_SHEET_BACKUP_SUFFIX}`
   
   let calSheetBackup = ss.getSheetByName(calSheetBackupName);
   if (calSheetBackup) {
@@ -646,7 +640,7 @@ function generateCalendar() {
   }
 
   // Insert the new sheet at index 0 (first position)
-  calSheet = ss.insertSheet(CALENDAR_SHEET, 0);
+  calSheet = ss.insertSheet(config.termName, 0);
   calSheet.setHiddenGridlines(true);
   calSheet.activate();
   
@@ -895,7 +889,7 @@ function generateCalendar() {
   }
 
   // Set the version number
-  _setVersion(currentRow);
+  _setVersion(currentRow, config);
 
   SpreadsheetApp.getActiveSpreadsheet().toast('Ignored ' + ignoredEventsCounter + ' events.', 'Success: ' + events.length + ' events loaded', 7);
 }
